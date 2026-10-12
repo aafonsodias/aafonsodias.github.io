@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Manga Next settings</title>
+  <style>
+    body { font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 560px; margin: 32px auto; padding: 0 16px; color: #111827; }
+    @media (prefers-color-scheme: dark) { body { background: #111827; color: #f3f4f6; } input, select { background: #1f2937; color: #f3f4f6; border-color: #374151; } }
+    h1 { font-size: 20px; }
+    label { display: block; margin: 16px 0 4px; font-weight: 600; }
+    .hint { color: #6b7280; font-size: 12px; margin-top: 2px; }
+    input[type=text], input[type=number], select { font: inherit; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; width: 100%; }
+    input[type=number] { width: 100px; }
+    .inline { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+    .inline label { margin: 0; }
+    button { font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid #4f46e5; background: #4f46e5; color: #fff; cursor: pointer; margin-top: 24px; }
+    #saved { margin-left: 10px; color: #047857; }
+  </style>
+</head>
+<body>
+  <h1>Manga Next settings</h1>
+
+  <label for="folderName">Bookmarks folder</label>
+  <input type="text" id="folderName">
+  <div class="hint">The extension reads every bookmark inside this folder, including subfolders. Name match ignores case.</div>
+
+  <label for="intervalHours">Check every (hours)</label>
+  <input type="number" id="intervalHours" min="1" max="168" step="1">
+  <div class="hint">A check costs a couple of small requests per series. Six hours is plenty for weekly series.</div>
+
+  <div class="inline">
+    <input type="checkbox" id="notify">
+    <label for="notify">Show a notification when a chapter newer than my bookmark appears</label>
+  </div>
+
+  <label for="providerOrder">Release data source</label>
+  <select id="providerOrder">
+    <option value="comick">Comick first, then MangaUpdates</option>
+    <option value="mangaupdates">MangaUpdates first, then Comick</option>
+  </select>
+  <div class="hint">Both are public, keyless APIs. If one stops working, switch the order.</div>
+
+  <label for="comickBase">Comick API base URL (optional)</label>
+  <input type="text" id="comickBase" placeholder="https://api.comick.dev">
+  <div class="hint">Comick has moved domains before. Leave empty to try the known ones.</div>
+
+  <button id="save">Save</button><span id="saved"></span>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

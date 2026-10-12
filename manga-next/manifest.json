@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Manga Next",
+  "version": "0.1.0",
+  "description": "Reads your Manga bookmarks folder and tells you the latest chapter out and when the next one is expected.",
+  "permissions": ["bookmarks", "storage", "alarms", "notifications"],
+  "host_permissions": [
+    "https://api.comick.dev/*",
+    "https://api.comick.io/*",
+    "https://api.comick.fun/*",
+    "https://api.mangaupdates.com/*"
+  ],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Manga Next"
+  },
+  "options_page": "options.html"
+}

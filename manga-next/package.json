@@ -1,0 +1,6 @@
+{
+  "name": "manga-next",
+  "private": true,
+  "type": "module",
+  "description": "Chrome extension: next-chapter estimates for the bookmarks in your Manga folder."
+}

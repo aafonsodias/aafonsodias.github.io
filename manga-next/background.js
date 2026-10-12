@@ -1,0 +1,283 @@
+// Service worker: reads the bookmarks folder, checks each series, stores results, badges and notifies.
+
+import { parseBookmark, seriesKey } from './lib/parse.js';
+import { predict } from './lib/predict.js';
+import { providers, providerOrder, pickBest } from './lib/providers.js';
+import { getSettings, saveSettings, getState, setState, primaryEntries } from './lib/store.js';
+import { ICON_DATA_URL, installActionIcon } from './lib/icon.js';
+
+const ALARM = 'manga-next-refresh';
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let refreshing = null;
+
+chrome.runtime.onInstalled.addListener(async () => {
+  installActionIcon();
+  await scheduleAlarm();
+  refreshAll();
+});
+chrome.runtime.onStartup.addListener(async () => {
+  installActionIcon();
+  await scheduleAlarm();
+  refreshAll();
+});
+chrome.alarms.onAlarm.addListener((a) => {
+  if (a.name === ALARM) refreshAll();
+});
+
+// Re-read the folder when bookmarks change (you re-bookmark after each chapter). Only new series hit the network.
+let bookmarkTimer = null;
+const onBookmarkChange = () => {
+  clearTimeout(bookmarkTimer);
+  bookmarkTimer = setTimeout(() => syncBookmarks(), 1500);
+};
+chrome.bookmarks.onCreated.addListener(onBookmarkChange);
+chrome.bookmarks.onChanged.addListener(onBookmarkChange);
+chrome.bookmarks.onRemoved.addListener(onBookmarkChange);
+chrome.bookmarks.onMoved.addListener(onBookmarkChange);
+
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  handleMessage(msg).then(sendResponse, (e) => sendResponse({ error: String(e?.message || e) }));
+  return true;
+});
+
+async function handleMessage(msg) {
+  switch (msg?.type) {
+    case 'refresh':
+      refreshAll({ force: !!msg.force }); // runs on; the popup follows progress through storage
+      return { ok: true };
+    case 'reschedule':
+      await scheduleAlarm();
+      return { ok: true };
+    case 'setOverride': {
+      const settings = await getSettings();
+      const overrides = { ...settings.overrides };
+      if (msg.value) overrides[msg.key] = msg.value;
+      else delete overrides[msg.key];
+      await saveSettings({ overrides });
+      const state = await getState();
+      delete state.matches[msg.key];
+      delete state.results[msg.key];
+      await setState({ matches: state.matches, results: state.results });
+      refreshKeys([msg.key]);
+      return { ok: true };
+    }
+    default:
+      return { error: 'unknown message' };
+  }
+}
+
+async function scheduleAlarm() {
+  const settings = await getSettings();
+  const hours = Math.max(1, Number(settings.intervalHours) || 6);
+  await chrome.alarms.clear(ALARM);
+  await chrome.alarms.create(ALARM, { periodInMinutes: hours * 60, delayInMinutes: hours * 60 });
+}
+
+// ---------- bookmarks ----------
+
+function findFolder(nodes, name) {
+  const want = String(name || '').trim().toLowerCase();
+  const stack = [...nodes];
+  while (stack.length) {
+    const n = stack.shift();
+    if (!n.url && String(n.title || '').trim().toLowerCase() === want) return n;
+    if (n.children) stack.push(...n.children);
+  }
+  return null;
+}
+
+function collectBookmarks(node, out = []) {
+  for (const c of node.children || []) {
+    if (c.url) out.push(c);
+    else collectBookmarks(c, out);
+  }
+  return out;
+}
+
+async function readFolder(folderName) {
+  const tree = await chrome.bookmarks.getTree();
+  const folder = findFolder(tree, folderName);
+  if (!folder) return { found: false, entries: [] };
+  const sub = await chrome.bookmarks.getSubTree(folder.id);
+  const bookmarks = collectBookmarks(sub[0]);
+  const entries = bookmarks.map((b) => {
+    const parsed = parseBookmark({ title: b.title, url: b.url });
+    return {
+      bookmarkId: b.id,
+      title: b.title,
+      url: b.url,
+      series: parsed.series,
+      chapter: parsed.chapter,
+      key: parsed.key || seriesKey(b.url),
+    };
+  });
+  return { found: true, entries };
+}
+
+// ---------- matching + checking ----------
+
+async function findMatch(query, settings) {
+  const errors = [];
+  if (/^https?:\/\//i.test(query)) {
+    for (const p of Object.values(providers)) {
+      try {
+        const m = await p.fromUrl(query, settings);
+        if (m) return { match: { ...m, query }, errors };
+      } catch (e) {
+        errors.push(`${p.label}: ${e.message}`);
+      }
+    }
+    return { match: null, errors: errors.length ? errors : ['link not recognised'] };
+  }
+  // Take the first provider whose best hit matches the title well; otherwise the best weak hit, flagged uncertain.
+  let best = null;
+  for (const p of providerOrder(settings)) {
+    try {
+      const candidates = await p.search(query, settings);
+      const pick = pickBest(candidates, query);
+      if (!pick) {
+        errors.push(`${p.label}: no results`);
+        continue;
+      }
+      if (!best || pick.matchScore > best.matchScore) best = pick;
+      if (best.matchScore >= 2) break;
+    } catch (e) {
+      errors.push(`${p.label}: ${e.message}`);
+    }
+  }
+  if (best) return { match: { ...best, query, uncertain: best.matchScore < 2 }, errors };
+  return { match: null, errors };
+}
+
+async function checkSeries(entry, matches, settings) {
+  const key = entry.key;
+  const query = (settings.overrides && settings.overrides[key]) || entry.series || entry.title;
+  let match = matches[key];
+  let errors = [];
+  if (!match || match.query !== query) {
+    ({ match, errors } = await findMatch(query, settings));
+    if (match) matches[key] = match;
+    else delete matches[key];
+  }
+  const checkedAt = Date.now();
+  if (!match) return { checkedAt, error: `No match (${errors.join('; ')})`, query };
+
+  const provider = providers[match.provider];
+  try {
+    const [releases, info] = await Promise.all([provider.releases(match), provider.info(match)]);
+    const p = predict(releases);
+    const latestChapter = Math.max(p.latestChapter ?? -Infinity, info.latestChapter ?? -Infinity);
+    return {
+      ...p,
+      latestChapter: Number.isFinite(latestChapter) ? latestChapter : null,
+      status: info.status || null,
+      statusText: info.statusText || null,
+      provider: match.provider,
+      providerLabel: provider.label,
+      matchTitle: match.title,
+      matchUrl: match.url,
+      uncertain: !!match.uncertain,
+      query,
+      recent: releases.slice(0, 5),
+      checkedAt,
+      error: releases.length || info.latestChapter != null ? null : 'No English releases listed',
+    };
+  } catch (e) {
+    return { checkedAt, error: `${provider.label}: ${e.message}`, matchTitle: match.title, matchUrl: match.url, provider: match.provider, query };
+  }
+}
+
+async function refreshKeys(keys, { settings, state } = {}) {
+  settings = settings || (await getSettings());
+  state = state || (await getState());
+  const { matches, results, entries } = state;
+  for (const key of keys) {
+    const entry = entries.find((e) => e.key === key);
+    if (!entry) continue;
+    const prevNotified = results[key]?.notifiedChapter ?? null;
+    const res = await checkSeries(entry, matches, settings);
+    res.notifiedChapter = prevNotified;
+    results[key] = res;
+    await setState({ matches, results }); // write per series so the popup updates live
+    await sleep(400);
+  }
+  await updateBadgeAndNotify(entries, results, settings, state.lastRun);
+}
+
+async function syncBookmarks() {
+  const settings = await getSettings();
+  const { found, entries } = await readFolder(settings.folderName);
+  const state = await getState();
+  const keys = new Set(entries.map((e) => e.key));
+  for (const k of Object.keys(state.results)) if (!keys.has(k)) delete state.results[k];
+  await setState({ entries, folderFound: found, results: state.results });
+  const missing = [...keys].filter((k) => !state.results[k]);
+  if (missing.length) {
+    await refreshKeys(missing, { settings, state: { ...state, entries } });
+  } else {
+    await updateBadgeAndNotify(entries, state.results, settings, state.lastRun);
+  }
+}
+
+function refreshAll(opts = {}) {
+  if (refreshing) return refreshing;
+  refreshing = (async () => {
+    await setState({ running: Date.now() });
+    try {
+      const settings = await getSettings();
+      const { found, entries } = await readFolder(settings.folderName);
+      const state = await getState();
+      const keys = [...new Set(entries.map((e) => e.key))];
+      for (const k of Object.keys(state.results)) if (!keys.includes(k)) delete state.results[k];
+      await setState({ entries, folderFound: found, results: state.results });
+      await refreshKeys(keys, { settings, state: { ...state, entries } });
+      await setState({ lastRun: Date.now() });
+    } finally {
+      await setState({ running: 0 });
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
+// ---------- badge + notifications ----------
+
+function hasNew(entry, res) {
+  return res?.latestChapter != null && entry.chapter != null && res.latestChapter > entry.chapter;
+}
+
+async function updateBadgeAndNotify(entries, results, settings, lastRun) {
+  let count = 0;
+  const toNotify = [];
+  for (const e of primaryEntries(entries)) {
+    const res = results[e.key];
+    if (!res || !hasNew(e, res)) continue;
+    count++;
+    if (res.notifiedChapter == null || res.latestChapter > res.notifiedChapter) {
+      if (lastRun) toNotify.push({ entry: e, res });
+      res.notifiedChapter = res.latestChapter;
+    }
+  }
+  await setState({ results });
+  await chrome.action.setBadgeBackgroundColor({ color: '#4f46e5' });
+  await chrome.action.setBadgeText({ text: count ? String(count) : '' });
+
+  if (!settings.notify) return;
+  for (const { entry, res } of toNotify) {
+    chrome.notifications.create(`manga-next:${entry.key}`, {
+      type: 'basic',
+      iconUrl: ICON_DATA_URL,
+      title: `New chapter: ${entry.series || entry.title}`,
+      message: `Chapter ${res.latestChapter} is out (you bookmarked ${entry.chapter}).`,
+    });
+  }
+}
+
+chrome.notifications.onClicked.addListener(async (id) => {
+  if (!id.startsWith('manga-next:')) return;
+  const key = id.slice('manga-next:'.length);
+  const { entries } = await getState();
+  const entry = entries.find((e) => e.key === key);
+  if (entry) chrome.tabs.create({ url: entry.url });
+  chrome.notifications.clear(id);
+});
