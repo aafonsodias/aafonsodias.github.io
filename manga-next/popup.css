@@ -102,3 +102,6 @@ button.support { border-color: var(--accent); color: var(--accent); font-weight:
 }
 .empty { padding: 24px 16px; color: var(--muted); text-align: center; }
 .empty a { color: var(--accent); }
+.binbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--border); }
+.row .when { color: var(--muted); font-size: 11px; margin-top: 2px; }
+button.restore { align-self: center; }

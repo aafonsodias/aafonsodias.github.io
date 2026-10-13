@@ -23,7 +23,7 @@ export async function saveSettings(patch) {
 }
 
 export async function getState() {
-  const s = await chrome.storage.local.get(['entries', 'matches', 'results', 'lastRun', 'running', 'folderFound']);
+  const s = await chrome.storage.local.get(['entries', 'matches', 'results', 'lastRun', 'running', 'folderFound', 'trash', 'keep']);
   return {
     entries: s.entries || [],
     matches: s.matches || {},
@@ -31,7 +31,21 @@ export async function getState() {
     lastRun: s.lastRun || null,
     running: !!s.running && Date.now() - Number(s.running) < 10 * 60 * 1000,
     folderFound: s.folderFound !== false,
+    trash: s.trash || [], // removed bookmarks, newest first
+    keep: s.keep || [], // bookmark ids restored from the bin; auto-cleanup leaves them alone
   };
+}
+
+export const TRASH_MAX = 200;
+export const TRASH_DAYS = 60;
+
+export async function addToTrash(item) {
+  const { trash } = await chrome.storage.local.get('trash');
+  const cutoff = Date.now() - TRASH_DAYS * 86400000;
+  const next = [{ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, ...item }, ...(trash || [])]
+    .filter((t) => t.removedAt >= cutoff)
+    .slice(0, TRASH_MAX);
+  await chrome.storage.local.set({ trash: next });
 }
 
 export function setState(patch) {

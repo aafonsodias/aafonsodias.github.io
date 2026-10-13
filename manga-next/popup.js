@@ -7,6 +7,8 @@ const statusEl = document.getElementById('status');
 const refreshBtn = document.getElementById('refresh');
 const optionsBtn = document.getElementById('options');
 const supportBtn = document.getElementById('support');
+const binBtn = document.getElementById('bin');
+let showBin = false;
 
 const openFix = new Set();
 
@@ -16,6 +18,10 @@ refreshBtn.addEventListener('click', () => {
 });
 optionsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
 supportBtn.addEventListener('click', () => chrome.tabs.create({ url: KOFI_URL }));
+binBtn.addEventListener('click', () => {
+  showBin = !showBin;
+  render();
+});
 chrome.storage.onChanged.addListener(() => render());
 
 function startOfDay(ts) {
@@ -94,7 +100,14 @@ async function render() {
       : '';
   refreshBtn.disabled = state.running;
 
+  binBtn.textContent = state.trash.length ? `Bin (${state.trash.length})` : 'Bin';
+  binBtn.classList.toggle('active', showBin);
+
   listEl.textContent = '';
+  if (showBin) {
+    renderBin(state, now);
+    return;
+  }
   if (!state.folderFound) {
     listEl.innerHTML = `<div class="empty">No bookmarks folder named “${escapeHtml(settings.folderName)}” found.<br><a href="#" id="go-options">Change the folder name in settings</a>.</div>`;
     listEl.querySelector('#go-options').addEventListener('click', (e) => {
@@ -117,6 +130,46 @@ async function render() {
     });
 
   for (const { entry, res } of rows) listEl.appendChild(renderRow(entry, res, settings, now));
+}
+
+function renderBin(state, now) {
+  const bar = el('div', { class: 'binbar' });
+  bar.appendChild(el('span', {}, state.trash.length ? 'Bookmarks removed from the folder. Restore puts one back and protects it from auto-cleanup.' : 'Nothing in the bin.'));
+  if (state.trash.length) {
+    const empty = el('button', { title: 'Forget everything in the bin' }, 'Empty');
+    empty.addEventListener('click', () => {
+      if (confirm('Empty the bin? These cannot be restored afterwards.')) chrome.runtime.sendMessage({ type: 'emptyTrash' });
+    });
+    bar.appendChild(empty);
+  }
+  listEl.appendChild(bar);
+  const live = new Set(state.entries.map((e) => e.key));
+  const items = [...state.trash].sort((a, b) => Number(live.has(b.key) === false) - Number(live.has(a.key) === false) || b.removedAt - a.removedAt);
+  for (const t of items) {
+    const gone = !!t.key && !live.has(t.key);
+    const row = el('div', { class: `row${gone ? ' new' : ''}` });
+    const main = el('div', { class: 'main', title: t.url });
+    main.addEventListener('click', () => chrome.tabs.create({ url: t.url }));
+    const title = el('div', { class: 'title' });
+    title.appendChild(el('span', { class: 'name' }, t.series || t.title));
+    if (t.chapter != null) title.appendChild(el('span', { class: 'pill muted' }, `ch ${t.chapter}`));
+    if (gone) title.appendChild(el('span', { class: 'pill warn', title: 'No bookmark of this series is left in the folder' }, 'GONE FROM FOLDER'));
+    main.appendChild(title);
+    const why = t.by === 'auto' ? `removed by Manga Next, replaced by chapter ${t.replacedBy}` : 'deleted by you';
+    main.appendChild(el('div', { class: 'when' }, `${why} · ${agoShort(t.removedAt, now)}`));
+    row.appendChild(main);
+    const restore = el('button', { class: 'restore' }, 'Restore');
+    restore.addEventListener('click', async () => {
+      restore.disabled = true;
+      const r = await chrome.runtime.sendMessage({ type: 'restore', trashId: t.id });
+      if (r?.error) {
+        restore.disabled = false;
+        restore.textContent = r.error;
+      }
+    });
+    row.appendChild(restore);
+    listEl.appendChild(row);
+  }
 }
 
 function renderRow(entry, res, settings, now) {

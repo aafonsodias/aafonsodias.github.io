@@ -35,6 +35,8 @@ Nothing to sign up for, no keys. It runs entirely in your browser.
 6. When you bookmark a newer chapter of a series you already have in the folder, the older
    bookmark of that series is deleted automatically, so the folder holds one bookmark per series.
    Turn this off in settings if you prefer to clean up by hand.
+7. Every bookmark removed from the folder, by the extension or by you, goes to the **Bin** in the
+   popup for 60 days. Restore puts it back, and a restored bookmark is never auto-removed again.
 
 ## Reading the popup
 

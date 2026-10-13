@@ -3,7 +3,7 @@
 import { parseBookmark, seriesKey } from './lib/parse.js';
 import { predict } from './lib/predict.js';
 import { providers, providerOrder, pickBest } from './lib/providers.js';
-import { getSettings, saveSettings, getState, setState, primaryEntries } from './lib/store.js';
+import { getSettings, saveSettings, getState, setState, primaryEntries, addToTrash } from './lib/store.js';
 import { ICON_DATA_URL, installActionIcon } from './lib/icon.js';
 
 const ALARM = 'manga-next-refresh';
@@ -32,7 +32,9 @@ const onBookmarkChange = () => {
 };
 chrome.bookmarks.onCreated.addListener(onBookmarkChange);
 chrome.bookmarks.onChanged.addListener(onBookmarkChange);
-chrome.bookmarks.onRemoved.addListener(onBookmarkChange);
+chrome.bookmarks.onRemoved.addListener((id, info) => {
+  recordUserRemoval(id, info).finally(onBookmarkChange);
+});
 chrome.bookmarks.onMoved.addListener(onBookmarkChange);
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -47,6 +49,11 @@ async function handleMessage(msg) {
       return { ok: true };
     case 'reschedule':
       await scheduleAlarm();
+      return { ok: true };
+    case 'restore':
+      return restoreFromTrash(msg.trashId);
+    case 'emptyTrash':
+      await setState({ trash: [] });
       return { ok: true };
     case 'setOverride': {
       const settings = await getSettings();
@@ -109,6 +116,7 @@ async function readFolder(folderName) {
       series: parsed.series,
       chapter: parsed.chapter,
       dateAdded: b.dateAdded || 0,
+      parentId: b.parentId,
       key: parsed.key || seriesKey(b.url),
     };
   });
@@ -117,11 +125,14 @@ async function readFolder(folderName) {
 
 // You bookmark chapter 65; the chapter 64 bookmark of the same series goes away.
 // Keeps the highest chapter per series (newest bookmark on a tie). Bookmarks without a chapter are left alone.
-async function pruneOldBookmarks(entries, settings) {
+const selfRemoving = new Set();
+
+async function pruneOldBookmarks(entries, settings, keep = []) {
   if (!settings.autoClean) return entries;
+  const kept = new Set(keep);
   const byKey = new Map();
   for (const e of entries) {
-    if (e.chapter == null) continue;
+    if (e.chapter == null || kept.has(e.bookmarkId)) continue;
     if (!byKey.has(e.key)) byKey.set(e.key, []);
     byKey.get(e.key).push(e);
   }
@@ -131,14 +142,48 @@ async function pruneOldBookmarks(entries, settings) {
     list.sort((a, b) => b.chapter - a.chapter || b.dateAdded - a.dateAdded);
     for (const old of list.slice(1)) {
       try {
+        selfRemoving.add(old.bookmarkId);
+        await addToTrash({ title: old.title, url: old.url, parentId: old.parentId, series: old.series, key: old.key, chapter: old.chapter, removedAt: Date.now(), by: 'auto', replacedBy: list[0].chapter });
         await chrome.bookmarks.remove(old.bookmarkId);
         removed.add(old.bookmarkId);
       } catch (e) {
+        selfRemoving.delete(old.bookmarkId);
         console.warn('Manga Next: could not remove old bookmark', old.title, e);
       }
     }
   }
   return removed.size ? entries.filter((e) => !removed.has(e.bookmarkId)) : entries;
+}
+
+// A bookmark you deleted yourself, if it was one of ours, goes to the bin as well.
+async function recordUserRemoval(id, info) {
+  if (selfRemoving.delete(id)) return;
+  const node = info?.node;
+  if (!node?.url) return;
+  const { entries } = await getState();
+  const known = entries.find((e) => e.bookmarkId === id);
+  if (!known) return;
+  await addToTrash({ title: node.title || known.title, url: node.url, parentId: info.parentId || known.parentId, series: known.series, key: known.key, chapter: known.chapter, removedAt: Date.now(), by: 'you' });
+}
+
+async function restoreFromTrash(trashId) {
+  const settings = await getSettings();
+  const state = await getState();
+  const item = state.trash.find((t) => t.id === trashId);
+  if (!item) return { error: 'Not in the bin any more' };
+  let parentId = item.parentId;
+  try {
+    await chrome.bookmarks.get(parentId);
+  } catch {
+    const tree = await chrome.bookmarks.getTree();
+    const folder = findFolder(tree, settings.folderName);
+    if (!folder) return { error: `No folder named ${settings.folderName} to restore into` };
+    parentId = folder.id;
+  }
+  const created = await chrome.bookmarks.create({ parentId, title: item.title, url: item.url });
+  const keep = [...new Set([...state.keep, created.id])];
+  await setState({ keep, trash: state.trash.filter((t) => t.id !== trashId) });
+  return { ok: true, bookmarkId: created.id };
 }
 
 // ---------- matching + checking ----------
@@ -232,13 +277,16 @@ async function refreshKeys(keys, { settings, state } = {}) {
 }
 
 async function syncBookmarks() {
+  if (refreshing) await refreshing; // let a running full check finish so we read fresh results
   const settings = await getSettings();
   const { found, entries: raw } = await readFolder(settings.folderName);
-  const entries = await pruneOldBookmarks(raw, settings);
   const state = await getState();
+  const entries = await pruneOldBookmarks(raw, settings, state.keep);
+  const liveIds = new Set(entries.map((e) => e.bookmarkId));
+  state.keep = state.keep.filter((id) => liveIds.has(id));
   const keys = new Set(entries.map((e) => e.key));
   for (const k of Object.keys(state.results)) if (!keys.has(k)) delete state.results[k];
-  await setState({ entries, folderFound: found, results: state.results });
+  await setState({ entries, folderFound: found, results: state.results, keep: state.keep });
   const missing = [...keys].filter((k) => !state.results[k]);
   if (missing.length) {
     await refreshKeys(missing, { settings, state: { ...state, entries } });
@@ -254,8 +302,8 @@ function refreshAll(opts = {}) {
     try {
       const settings = await getSettings();
       const { found, entries: raw } = await readFolder(settings.folderName);
-      const entries = await pruneOldBookmarks(raw, settings);
       const state = await getState();
+      const entries = await pruneOldBookmarks(raw, settings, state.keep);
       const keys = [...new Set(entries.map((e) => e.key))];
       for (const k of Object.keys(state.results)) if (!keys.includes(k)) delete state.results[k];
       await setState({ entries, folderFound: found, results: state.results });
