@@ -7,16 +7,22 @@
 </head>
 <body>
   <header>
-    <h1>Manga Next</h1>
+    <div class="brand">
+      <img src="icons/icon32.png" width="20" height="20" alt="">
+      <h1>Manga Next</h1>
+    </div>
     <div class="actions">
-      <span id="status" class="status"></span>
-      <button id="refresh" title="Check now">Refresh</button>
-      <button id="bin" title="Deleted bookmarks">Bin</button>
-      <button id="support" class="support" title="Buy me a coffee on Ko-fi">Support</button>
-      <button id="options" title="Settings">Settings</button>
+      <button id="filter" class="icon-btn" title="Show only series with a new chapter" aria-pressed="false">New only</button>
+      <button id="bin" class="icon-btn" title="Deleted bookmarks">Bin</button>
+      <button id="refresh" class="icon-btn" title="Check now" aria-label="Check now">&#8635;</button>
+      <button id="options" class="icon-btn" title="Settings" aria-label="Settings">&#9881;</button>
     </div>
   </header>
   <main id="list"></main>
+  <footer>
+    <span><span id="summary"></span><span id="status" class="status"></span></span>
+    <button id="support" class="support" title="Buy me a coffee on Ko-fi">&#9749; Support</button>
+  </footer>
   <script type="module" src="popup.js"></script>
 </body>
 </html>

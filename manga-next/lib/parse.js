@@ -95,6 +95,26 @@ export function parseBookmark({ title = '', url = '' } = {}) {
   return { series, chapter, key: series ? seriesKey(series) : null };
 }
 
+// Given the bookmarked chapter URL, guess the URL of another chapter by swapping the number.
+// Works on sites that put the chapter number in the path (most do). Returns null when it cannot.
+export function bumpChapterUrl(url, fromChapter, toChapter) {
+  if (!url || fromChapter == null || toChapter == null) return null;
+  try {
+    const u = new URL(url);
+    const re = /((?:chapter|chap|ch|episode|ep)[-_/]?)(\d+(?:[.-]\d+)?)(?=[/?#]|$)/i;
+    const m = u.pathname.match(re);
+    if (!m) return null;
+    const have = Number(m[2].replace('-', '.'));
+    if (have !== Number(fromChapter)) return null;
+    const sep = m[2].includes('-') ? '-' : '.';
+    const next = String(toChapter).replace('.', sep);
+    u.pathname = u.pathname.replace(re, `$1${next}`);
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
 // "221-222" -> 222, "112.7" -> 112.7, "Ch. 5" -> 5, null/"" -> null
 export function parseChapterNumber(raw) {
   if (raw == null) return null;

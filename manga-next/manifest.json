@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Manga Next",
-  "version": "0.1.0",
-  "description": "Reads your Manga bookmarks folder and tells you the latest chapter out and when the next one is expected.",
+  "version": "0.2.0",
+  "description": "Know when the next chapter of every manga in your bookmarks folder comes out. No account, no tracking.",
+  "homepage_url": "https://github.com/aafonsodias/aafonsodias.github.io/tree/main/manga-next",
   "permissions": ["bookmarks", "storage", "alarms", "notifications"],
   "host_permissions": [
     "https://api.comick.dev/*",
@@ -13,7 +14,15 @@
   "background": { "service_worker": "background.js", "type": "module" },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Manga Next"
+    "default_title": "Manga Next",
+    "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
   },
-  "options_page": "options.html"
+  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "options_page": "options.html",
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+Shift+M" },
+      "description": "Open Manga Next"
+    }
+  }
 }

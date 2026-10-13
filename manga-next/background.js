@@ -4,19 +4,16 @@ import { parseBookmark, seriesKey } from './lib/parse.js';
 import { predict } from './lib/predict.js';
 import { providers, providerOrder, pickBest } from './lib/providers.js';
 import { getSettings, saveSettings, getState, setState, primaryEntries, addToTrash } from './lib/store.js';
-import { ICON_DATA_URL, installActionIcon } from './lib/icon.js';
 
 const ALARM = 'manga-next-refresh';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let refreshing = null;
 
 chrome.runtime.onInstalled.addListener(async () => {
-  installActionIcon();
   await scheduleAlarm();
   refreshAll();
 });
 chrome.runtime.onStartup.addListener(async () => {
-  installActionIcon();
   await scheduleAlarm();
   refreshAll();
 });
@@ -343,7 +340,7 @@ async function updateBadgeAndNotify(entries, results, settings, lastRun) {
   for (const { entry, res } of toNotify) {
     chrome.notifications.create(`manga-next:${entry.key}`, {
       type: 'basic',
-      iconUrl: ICON_DATA_URL,
+      iconUrl: 'icons/icon128.png',
       title: `New chapter: ${entry.series || entry.title}`,
       message: `Chapter ${res.latestChapter} is out (you bookmarked ${entry.chapter}).`,
     });

@@ -1,16 +1,25 @@
 import { getSettings, getState, primaryEntries } from './lib/store.js';
 import { DAY } from './lib/predict.js';
+import { bumpChapterUrl } from './lib/parse.js';
 import { KOFI_URL } from './lib/links.js';
 
 const listEl = document.getElementById('list');
 const statusEl = document.getElementById('status');
+const summaryEl = document.getElementById('summary');
 const refreshBtn = document.getElementById('refresh');
 const optionsBtn = document.getElementById('options');
 const supportBtn = document.getElementById('support');
 const binBtn = document.getElementById('bin');
-let showBin = false;
+const filterBtn = document.getElementById('filter');
 
 const openFix = new Set();
+let showBin = false;
+let newOnly = false;
+try {
+  newOnly = localStorage.getItem('newOnly') === '1';
+} catch {
+  // storage unavailable; default off
+}
 
 refreshBtn.addEventListener('click', () => {
   refreshBtn.disabled = true;
@@ -22,7 +31,19 @@ binBtn.addEventListener('click', () => {
   showBin = !showBin;
   render();
 });
+filterBtn.addEventListener('click', () => {
+  newOnly = !newOnly;
+  try {
+    localStorage.setItem('newOnly', newOnly ? '1' : '0');
+  } catch {
+    // ignore
+  }
+  showBin = false;
+  render();
+});
 chrome.storage.onChanged.addListener(() => render());
+
+// ---------- formatting ----------
 
 function startOfDay(ts) {
   const d = new Date(ts);
@@ -52,56 +73,70 @@ function agoShort(ts, now) {
   return `${Math.round(h / 24)} d ago`;
 }
 
-function describeNext(entry, res, now) {
-  // returns { text, tone }
-  if (!res) return { text: 'not checked yet', tone: '' };
+function isNew(entry, res) {
+  return !!res && res.latestChapter != null && entry.chapter != null && res.latestChapter > entry.chapter;
+}
+
+// Which section a row belongs to, in display order.
+const SECTIONS = [
+  { id: 'new', label: 'New chapters' },
+  { id: 'soon', label: 'Coming up' },
+  { id: 'quiet', label: 'Quiet' },
+  { id: 'done', label: 'Finished' },
+  { id: 'unknown', label: 'Needs attention' },
+];
+
+function classify(entry, res, now) {
+  if (isNew(entry, res)) return { section: 'new', order: 0 };
+  if (!res) return { section: 'unknown', order: 1 };
+  if (res.error && res.latestChapter == null) return { section: 'unknown', order: 0 };
+  if (res.status === 'completed' || res.status === 'cancelled') return { section: 'done', order: 0 };
+  if (res.status === 'hiatus' || res.suspectHiatus) return { section: 'quiet', order: -(res.daysSince || 0) };
+  const target = res.nextChance || res.nextExpected;
+  if (target) return { section: 'soon', order: target - now };
+  return { section: 'unknown', order: 2 };
+}
+
+function describeNext(res, now) {
+  if (!res) return { text: 'Not checked yet', tone: '' };
   if (res.error && res.latestChapter == null) return { text: res.error, tone: 'bad' };
-  if (res.status === 'completed') return { text: 'completed', tone: '' };
-  if (res.status === 'hiatus') return { text: 'on hiatus', tone: 'warn' };
-  if (res.status === 'cancelled') return { text: 'cancelled', tone: '' };
+  if (res.status === 'completed') return { text: 'Completed', tone: '' };
+  if (res.status === 'cancelled') return { text: 'Cancelled', tone: '' };
+  if (res.status === 'hiatus') return { text: 'On hiatus', tone: 'warn' };
   if (!res.cadenceDays) {
-    const when = res.latestDate ? ` on ${fmtDate(res.latestDate)}` : '';
-    return { text: `latest came out${when}. Not enough history to predict the next one`, tone: '' };
+    const when = res.latestDate ? ` ${fmtDate(res.latestDate)}` : '';
+    return { text: `Latest came out${when}. Not enough history to predict the next one`, tone: '' };
   }
   const cadence = res.cadenceLabel ? ` · ${res.cadenceLabel}` : '';
   if (res.suspectHiatus) {
-    return { text: `no chapter for ${Math.round(res.daysSince)} days, probably on a break${cadence}`, tone: 'warn' };
+    return { text: `No chapter for ${Math.round(res.daysSince)} days, probably on a break${cadence}`, tone: 'warn' };
   }
   if (res.late && res.nextChance) {
     const lateBy = Math.round((now - res.nextExpected) / DAY);
-    return { text: `was expected ${fmtDate(res.nextExpected)}, ${lateBy} days late. Next chance ${fmtDate(res.nextChance)} (${relDays(res.nextChance, now)})${cadence}`, tone: 'warn' };
+    return { text: `Expected ${fmtDate(res.nextExpected)}, ${lateBy} days late. Next chance ${fmtDate(res.nextChance)} (${relDays(res.nextChance, now)})${cadence}`, tone: 'warn' };
   }
   const target = res.nextChance || res.nextExpected;
   const rel = relDays(target, now);
   const tone = rel === 'today' || rel === 'tomorrow' ? 'ok' : '';
-  return { text: `next: ${fmtDate(target)} (${rel})${cadence}`, tone };
+  return { text: `Next ${fmtDate(target)} (${rel})${cadence}`, tone };
 }
 
-function sortKey(entry, res, now) {
-  // new chapters first, then soonest expected, then unknowns, then errors
-  if (res && res.latestChapter != null && entry.chapter != null && res.latestChapter > entry.chapter) return [0, 0];
-  if (!res) return [3, 0];
-  if (res.error && res.latestChapter == null) return [4, 0];
-  if (res.status === 'completed' || res.status === 'cancelled') return [5, 0];
-  if (res.status === 'hiatus' || res.suspectHiatus) return [2, res.daysSince || 0];
-  const target = res.nextChance || res.nextExpected;
-  if (target) return [1, target - now];
-  return [3, 0];
+function recentTooltip(res) {
+  if (!res?.recent?.length) return '';
+  return 'Recent releases:\n' + res.recent.map((r) => `ch ${r.chapter} · ${fmtDate(r.date)}${r.group ? ` · ${r.group}` : ''}`).join('\n');
 }
+
+// ---------- rendering ----------
 
 async function render() {
   const [state, settings] = await Promise.all([getState(), getSettings()]);
   const now = Date.now();
 
-  statusEl.textContent = state.running
-    ? 'checking…'
-    : state.lastRun
-      ? `checked ${agoShort(state.lastRun, now)}`
-      : '';
+  statusEl.textContent = state.running ? 'checking…' : state.lastRun ? `checked ${agoShort(state.lastRun, now)}` : '';
   refreshBtn.disabled = state.running;
-
   binBtn.textContent = state.trash.length ? `Bin (${state.trash.length})` : 'Bin';
   binBtn.classList.toggle('active', showBin);
+  filterBtn.setAttribute('aria-pressed', String(newOnly));
 
   listEl.textContent = '';
   if (showBin) {
@@ -109,79 +144,70 @@ async function render() {
     return;
   }
   if (!state.folderFound) {
-    listEl.innerHTML = `<div class="empty">No bookmarks folder named “${escapeHtml(settings.folderName)}” found.<br><a href="#" id="go-options">Change the folder name in settings</a>.</div>`;
-    listEl.querySelector('#go-options').addEventListener('click', (e) => {
+    summaryEl.textContent = '';
+    const box = el('div', { class: 'empty' });
+    box.appendChild(el('strong', {}, `No bookmarks folder named “${settings.folderName}”`));
+    box.append('Create one, or ');
+    const a = el('a', { href: '#' }, 'change the folder name in settings');
+    a.addEventListener('click', (e) => {
       e.preventDefault();
       chrome.runtime.openOptionsPage();
     });
+    box.appendChild(a);
+    box.append('.');
+    listEl.appendChild(box);
     return;
   }
-  if (!state.entries.length) {
-    listEl.innerHTML = `<div class="empty">The “${escapeHtml(settings.folderName)}” folder is empty. Bookmark a chapter page into it and come back.</div>`;
+
+  const entries = primaryEntries(state.entries);
+  if (!entries.length) {
+    summaryEl.textContent = '';
+    const box = el('div', { class: 'empty' });
+    box.appendChild(el('strong', {}, `The “${settings.folderName}” folder is empty`));
+    box.append('Bookmark the chapter you stopped at into it and come back.');
+    listEl.appendChild(box);
     return;
   }
 
-  const rows = primaryEntries(state.entries)
-    .map((entry) => ({ entry, res: state.results[entry.key] }))
-    .sort((a, b) => {
-      const ka = sortKey(a.entry, a.res, now);
-      const kb = sortKey(b.entry, b.res, now);
-      return ka[0] - kb[0] || ka[1] - kb[1] || (a.entry.series || '').localeCompare(b.entry.series || '');
-    });
+  const rows = entries.map((entry) => {
+    const res = state.results[entry.key];
+    return { entry, res, ...classify(entry, res, now) };
+  });
+  const newCount = rows.filter((r) => r.section === 'new').length;
+  summaryEl.textContent = `${entries.length} series · ${newCount} new`;
 
-  for (const { entry, res } of rows) listEl.appendChild(renderRow(entry, res, settings, now));
-}
-
-function renderBin(state, now) {
-  const bar = el('div', { class: 'binbar' });
-  bar.appendChild(el('span', {}, state.trash.length ? 'Bookmarks removed from the folder. Restore puts one back and protects it from auto-cleanup.' : 'Nothing in the bin.'));
-  if (state.trash.length) {
-    const empty = el('button', { title: 'Forget everything in the bin' }, 'Empty');
-    empty.addEventListener('click', () => {
-      if (confirm('Empty the bin? These cannot be restored afterwards.')) chrome.runtime.sendMessage({ type: 'emptyTrash' });
-    });
-    bar.appendChild(empty);
+  const visible = newOnly ? rows.filter((r) => r.section === 'new') : rows;
+  if (!visible.length) {
+    const box = el('div', { class: 'empty' });
+    box.appendChild(el('strong', {}, 'Nothing new'));
+    box.append('You are caught up on every series. Turn off “New only” to see the rest.');
+    listEl.appendChild(box);
+    return;
   }
-  listEl.appendChild(bar);
-  const live = new Set(state.entries.map((e) => e.key));
-  const items = [...state.trash].sort((a, b) => Number(live.has(b.key) === false) - Number(live.has(a.key) === false) || b.removedAt - a.removedAt);
-  for (const t of items) {
-    const gone = !!t.key && !live.has(t.key);
-    const row = el('div', { class: `row${gone ? ' new' : ''}` });
-    const main = el('div', { class: 'main', title: t.url });
-    main.addEventListener('click', () => chrome.tabs.create({ url: t.url }));
-    const title = el('div', { class: 'title' });
-    title.appendChild(el('span', { class: 'name' }, t.series || t.title));
-    if (t.chapter != null) title.appendChild(el('span', { class: 'pill muted' }, `ch ${t.chapter}`));
-    if (gone) title.appendChild(el('span', { class: 'pill warn', title: 'No bookmark of this series is left in the folder' }, 'GONE FROM FOLDER'));
-    main.appendChild(title);
-    const why = t.by === 'auto' ? `removed by Manga Next, replaced by chapter ${t.replacedBy}` : 'deleted by you';
-    main.appendChild(el('div', { class: 'when' }, `${why} · ${agoShort(t.removedAt, now)}`));
-    row.appendChild(main);
-    const restore = el('button', { class: 'restore' }, 'Restore');
-    restore.addEventListener('click', async () => {
-      restore.disabled = true;
-      const r = await chrome.runtime.sendMessage({ type: 'restore', trashId: t.id });
-      if (r?.error) {
-        restore.disabled = false;
-        restore.textContent = r.error;
-      }
-    });
-    row.appendChild(restore);
-    listEl.appendChild(row);
+
+  for (const section of SECTIONS) {
+    const items = visible.filter((r) => r.section === section.id).sort((a, b) => a.order - b.order || (a.entry.series || '').localeCompare(b.entry.series || ''));
+    if (!items.length) continue;
+    if (!newOnly) {
+      const h = el('div', { class: 'section' }, section.label);
+      h.appendChild(el('span', { class: 'count' }, String(items.length)));
+      listEl.appendChild(h);
+    }
+    for (const { entry, res } of items) listEl.appendChild(renderRow(entry, res, settings, now));
   }
 }
 
 function renderRow(entry, res, settings, now) {
-  const isNew = res && res.latestChapter != null && entry.chapter != null && res.latestChapter > entry.chapter;
-  const row = el('div', { class: `row${isNew ? ' new' : ''}` });
+  const fresh = isNew(entry, res);
+  const d = describeNext(res, now);
+  const row = el('div', { class: `row${fresh ? ' new' : d.tone ? ` ${d.tone}` : ''}` });
 
-  const main = el('div', { class: 'main', title: entry.url });
+  const main = el('div', { class: 'main', title: recentTooltip(res) || entry.url });
   main.addEventListener('click', () => chrome.tabs.create({ url: entry.url }));
 
   const title = el('div', { class: 'title' });
   title.appendChild(el('span', { class: 'name' }, entry.series || entry.title));
-  if (isNew) title.appendChild(el('span', { class: 'pill' }, `NEW ${res.latestChapter}`));
+  if (fresh) title.appendChild(el('span', { class: 'pill' }, `NEW ${res.latestChapter}`));
   else if (res?.status === 'hiatus') title.appendChild(el('span', { class: 'pill warn' }, 'HIATUS'));
   else if (res?.suspectHiatus) title.appendChild(el('span', { class: 'pill warn' }, 'BREAK?'));
   else if (res?.status === 'completed') title.appendChild(el('span', { class: 'pill muted' }, 'DONE'));
@@ -189,31 +215,51 @@ function renderRow(entry, res, settings, now) {
   if (res?.uncertain) title.appendChild(el('span', { class: 'pill warn', title: 'The matched series title does not look like your bookmark. Check the “via” link, or press fix.' }, 'CHECK MATCH'));
   main.appendChild(title);
 
-  const you = entry.chapter != null ? `you: ${entry.chapter}` : 'you: ?';
-  const latest = res?.latestChapter != null
-    ? `latest: ${res.latestChapter}${res.latestDate ? ` (${relDays(res.latestDate, now)})` : ''}`
-    : 'latest: ?';
-  main.appendChild(el('div', { class: 'meta' }, `${you} · ${latest}`));
+  const meta = el('div', { class: 'meta' });
+  const you = el('span');
+  you.append('you ');
+  you.appendChild(el('b', {}, entry.chapter != null ? String(entry.chapter) : '?'));
+  meta.appendChild(you);
+  const latest = el('span');
+  latest.append('latest ');
+  latest.appendChild(el('b', {}, res?.latestChapter != null ? String(res.latestChapter) : '?'));
+  if (res?.latestDate) latest.append(` (${relDays(res.latestDate, now)})`);
+  meta.appendChild(latest);
+  main.appendChild(meta);
 
-  const d = describeNext(entry, res, now);
   main.appendChild(el('div', { class: `next ${d.tone}` }, d.text));
 
   if (res?.matchTitle) {
     const via = el('div', { class: 'via' });
     via.append(`via ${res.providerLabel || res.provider}: `);
-    const a = el('a', { href: res.matchUrl || '#', target: '_blank' }, res.matchTitle);
+    const a = el('a', { href: res.matchUrl || '#', target: '_blank', rel: 'noopener' }, res.matchTitle);
     a.addEventListener('click', (e) => e.stopPropagation());
     via.appendChild(a);
     main.appendChild(via);
   }
+  row.appendChild(main);
+
+  const side = el('div', { class: 'side' });
+  if (fresh) {
+    const nextCh = entry.chapter + 1 <= res.latestChapter ? entry.chapter + 1 : res.latestChapter;
+    const url = bumpChapterUrl(entry.url, entry.chapter, nextCh);
+    const read = el('button', { class: 'read', title: url ? `Open ${url}` : 'Opens your bookmark; this site does not put the chapter number in the URL' }, `Read ch ${nextCh}`);
+    read.addEventListener('click', (e) => {
+      e.stopPropagation();
+      chrome.tabs.create({ url: url || entry.url });
+    });
+    side.appendChild(read);
+  }
+  const fix = el('button', { class: 'fix', title: 'Wrong series matched? Search with a different name or paste a link' }, 'fix');
+  side.appendChild(fix);
+  row.appendChild(side);
 
   const fixbox = el('div', { class: `fixbox${openFix.has(entry.key) ? ' open' : ''}` });
   const input = el('input', {
     type: 'text',
-    placeholder: 'Search as… or paste a comick.io / mangaupdates.com link',
+    placeholder: 'Search as… or paste a comick.io / mangaupdates.com link, then Enter',
     value: settings.overrides?.[entry.key] || '',
   });
-  input.addEventListener('click', (e) => e.stopPropagation());
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       openFix.delete(entry.key);
@@ -225,19 +271,58 @@ function renderRow(entry, res, settings, now) {
     }
   });
   fixbox.appendChild(input);
-  main.appendChild(fixbox);
-
-  row.appendChild(main);
-
-  const fix = el('button', { class: 'fix', title: 'Wrong series matched? Search with a different name or paste a link' }, 'fix');
+  row.appendChild(fixbox);
   fix.addEventListener('click', () => {
     if (openFix.has(entry.key)) openFix.delete(entry.key);
     else openFix.add(entry.key);
     fixbox.classList.toggle('open');
     if (fixbox.classList.contains('open')) input.focus();
   });
-  row.appendChild(fix);
   return row;
+}
+
+function renderBin(state, now) {
+  summaryEl.textContent = state.trash.length ? `${state.trash.length} in the bin · kept 60 days` : '';
+  const bar = el('div', { class: 'binbar' });
+  bar.appendChild(el('span', {}, state.trash.length ? 'Bookmarks removed from the folder. Restore puts one back and protects it from auto-cleanup.' : 'Nothing in the bin.'));
+  if (state.trash.length) {
+    const empty = el('button', { title: 'Forget everything in the bin' }, 'Empty');
+    empty.addEventListener('click', () => {
+      if (confirm('Empty the bin? These cannot be restored afterwards.')) chrome.runtime.sendMessage({ type: 'emptyTrash' });
+    });
+    bar.appendChild(empty);
+  }
+  listEl.appendChild(bar);
+
+  const live = new Set(state.entries.map((e) => e.key));
+  const items = [...state.trash].sort((a, b) => Number(!live.has(b.key)) - Number(!live.has(a.key)) || b.removedAt - a.removedAt);
+  for (const t of items) {
+    const gone = !!t.key && !live.has(t.key);
+    const row = el('div', { class: `row${gone ? ' warn' : ''}` });
+    const main = el('div', { class: 'main', title: t.url });
+    main.addEventListener('click', () => chrome.tabs.create({ url: t.url }));
+    const title = el('div', { class: 'title' });
+    title.appendChild(el('span', { class: 'name' }, t.series || t.title));
+    if (t.chapter != null) title.appendChild(el('span', { class: 'pill muted' }, `ch ${t.chapter}`));
+    if (gone) title.appendChild(el('span', { class: 'pill warn', title: 'No bookmark of this series is left in the folder' }, 'GONE FROM FOLDER'));
+    main.appendChild(title);
+    const why = t.by === 'auto' ? `Removed by Manga Next, replaced by chapter ${t.replacedBy}` : 'Deleted by you';
+    main.appendChild(el('div', { class: 'when' }, `${why} · ${agoShort(t.removedAt, now)}`));
+    row.appendChild(main);
+    const side = el('div', { class: 'side' });
+    const restore = el('button', { class: 'restore' }, 'Restore');
+    restore.addEventListener('click', async () => {
+      restore.disabled = true;
+      const r = await chrome.runtime.sendMessage({ type: 'restore', trashId: t.id });
+      if (r?.error) {
+        restore.disabled = false;
+        restore.textContent = r.error;
+      }
+    });
+    side.appendChild(restore);
+    row.appendChild(side);
+    listEl.appendChild(row);
+  }
 }
 
 function el(tag, attrs = {}, text) {
@@ -249,10 +334,6 @@ function el(tag, attrs = {}, text) {
   }
   if (text != null) n.textContent = text;
   return n;
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 render();

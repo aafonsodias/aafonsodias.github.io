@@ -32,6 +32,7 @@ Nothing to sign up for, no keys. It runs entirely in your browser.
    projects the next one. If a series is more than one and a half gaps late it says so, and
    if it is silent for more than two and a half gaps it marks it as probably on a break.
 5. It re-checks every 6 hours (change this in settings) and whenever you edit the folder.
+   Press **Alt+Shift+M** to open the popup from anywhere (change it at `chrome://extensions/shortcuts`).
 6. When you bookmark a newer chapter of a series you already have in the folder, the older
    bookmark of that series is deleted automatically, so the folder holds one bookmark per series.
    Turn this off in settings if you prefer to clean up by hand.
@@ -40,7 +41,11 @@ Nothing to sign up for, no keys. It runs entirely in your browser.
 
 ## Reading the popup
 
-- **NEW 223** pill: a chapter newer than your bookmark is out. Click the row to open your bookmark.
+- **NEW 223** pill: a chapter newer than your bookmark is out. **Read ch 223** opens that chapter directly
+  (it swaps the chapter number in your bookmarked URL; on sites without a number in the URL it opens
+  your bookmark instead). Clicking the row opens your bookmark.
+- **New only** hides everything you are caught up on. Hover a row to see the last few releases and groups.
+- Rows are grouped: New chapters, Coming up (soonest first), Quiet, Finished, Needs attention.
 - **next: Tue 14 Oct (in 2 days) · weekly, usually Tue**: the estimate and the rhythm it is based on.
 - **BREAK?** / **HIATUS** / **DONE**: quiet for too long, flagged as hiatus by the source, or completed.
 - **CHECK MATCH**: the series the source matched does not look like your bookmark title. Follow the
@@ -68,6 +73,12 @@ https://ko-fi.com/aafonsodias
 
 The **Support** button in the popup header opens the same page in one click.
 
+## Publishing to the Chrome Web Store
+
+Everything you need to paste into the developer dashboard is in `store/listing.md`, and the
+privacy policy the store asks for is `privacy.html` (served at
+https://aafonsodias.github.io/manga-next/privacy.html once merged).
+
 ## Development
 
 Plain Manifest V3, no build step. Files:
@@ -76,5 +87,5 @@ Plain Manifest V3, no build step. Files:
 - `lib/parse.js`: bookmark title and URL parsing.
 - `lib/predict.js`: cadence and next-release estimate.
 - `lib/providers.js`: Comick and MangaUpdates clients.
-- `lib/icon.js`: inline toolbar and notification icon (no binary files in the repo).
+- `icons/`: toolbar, store and notification icons.
 - `popup.*`, `options.*`: UI.
