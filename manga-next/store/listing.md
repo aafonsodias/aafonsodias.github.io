@@ -35,6 +35,8 @@ No account. No sign-in. Nothing leaves your browser except the series title sent
 
 ## Graphic assets
 
+Ready-made 1280×800 screenshots are in `store/screenshots/` (regenerate with `store/storeshots.mjs`).
+
 - Store icon: `icons/icon128.png` (128×128, provided).
 - Screenshots: at least one at 1280×800 or 640×400. Take them from your own Chrome with the popup open: one of the main list with a NEW row, one of the Bin, one of the settings page. Crop or pad to the exact size.
 - Promo tile (440×280) is optional.
