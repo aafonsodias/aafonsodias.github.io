@@ -2,6 +2,8 @@
 
 export const DEFAULT_SETTINGS = {
   folderName: 'Manga',
+  folderId: null, // the folder actually in use; survives renames of the folder in Chrome
+  folderChosen: false, // true once the user picked or typed a folder; stops auto-detection
   intervalHours: 6,
   notify: true,
   autoClean: true, // remove the older bookmark of a series when a newer chapter is bookmarked
@@ -23,7 +25,7 @@ export async function saveSettings(patch) {
 }
 
 export async function getState() {
-  const s = await chrome.storage.local.get(['entries', 'matches', 'results', 'lastRun', 'running', 'folderFound', 'trash', 'keep', 'smartNext']);
+  const s = await chrome.storage.local.get(['entries', 'matches', 'results', 'lastRun', 'running', 'folderFound', 'trash', 'keep', 'smartNext', 'pendingFolder', 'adoptedFolder']);
   return {
     entries: s.entries || [],
     matches: s.matches || {},
@@ -34,6 +36,8 @@ export async function getState() {
     trash: s.trash || [], // removed bookmarks, newest first
     keep: s.keep || [], // bookmark ids restored from the bin; auto-cleanup leaves them alone
     smartNext: s.smartNext || null, // when the next release-window check fires
+    pendingFolder: s.pendingFolder || null, // { candidates: [{id, title, count}] } when the user must pick
+    adoptedFolder: s.adoptedFolder || null, // { title, count } one-time notice after auto-adopting a folder
   };
 }
 

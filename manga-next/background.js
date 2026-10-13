@@ -51,6 +51,22 @@ async function handleMessage(msg) {
     case 'reschedule':
       await scheduleAlarm();
       return { ok: true };
+    case 'chooseFolder': {
+      // msg.id: use that existing folder; no id: create one with the configured name
+      if (msg.id) {
+        const [node] = await chrome.bookmarks.get(msg.id);
+        if (!node || node.url) return { error: 'That folder no longer exists' };
+        await saveSettings({ folderId: node.id, folderName: node.title, folderChosen: true });
+      } else {
+        await saveSettings({ folderId: null, folderChosen: true });
+      }
+      await setState({ pendingFolder: null, adoptedFolder: null, matches: {}, results: {} });
+      refreshAll();
+      return { ok: true };
+    }
+    case 'dismissAdopted':
+      await setState({ adoptedFolder: null });
+      return { ok: true };
     case 'restore':
       return restoreFromTrash(msg.trashId);
     case 'emptyTrash':
@@ -152,25 +168,80 @@ function collectBookmarks(node, out = []) {
   return out;
 }
 
-// The folder is created in the bookmarks bar when it does not exist, so a new user can start
-// bookmarking straight away. Renaming it in settings creates the new one the same way.
-async function ensureFolder(folderName) {
+const FOLDER_WORDS = /\b(manga|mangas|mang[aá]s?|manhwa|manhua|webtoons?|scans?|comics?|quadrinhos|leitura|reading)\b/i;
+
+// Every folder that already looks like a manga folder: by name, or because most of its bookmarks
+// are chapter pages. Sorted by how many chapter bookmarks it holds.
+function detectFolders(tree) {
+  const out = [];
+  const walk = (n, depth) => {
+    if (n.url) return;
+    if (depth >= 2) {
+      const marks = collectBookmarks(n);
+      const count = marks.filter((b) => parseBookmark({ title: b.title, url: b.url }).chapter != null).length;
+      const named = FOLDER_WORDS.test(n.title || '');
+      const byContent = count >= 3 && count / Math.max(1, marks.length) >= 0.6;
+      if (named || byContent) out.push({ id: n.id, title: n.title, count, total: marks.length, named });
+    }
+    for (const c of n.children || []) walk(c, depth + 1);
+  };
+  for (const root of tree) walk(root, 0);
+  return out.sort((a, b) => b.count - a.count || Number(b.named) - Number(a.named));
+}
+
+// Finds the folder to use. Order: the folder chosen before (by id), then a folder with the configured
+// name, then, unless the user has already chosen, any existing folder that looks like their manga
+// folder under another name. Adopts it when there is one clear candidate, asks when there are
+// several, and only creates a new folder in the bookmarks bar when nothing fits.
+async function ensureFolder(settings) {
   const tree = await chrome.bookmarks.getTree();
-  const existing = findFolder(tree, folderName);
-  if (existing) return existing;
+  if (settings.folderId) {
+    try {
+      const [node] = await chrome.bookmarks.get(settings.folderId);
+      if (node && !node.url) {
+        if (node.title !== settings.folderName) await saveSettings({ folderName: node.title });
+        return node;
+      }
+    } catch {
+      // folder is gone; fall through
+    }
+  }
+  const byName = findFolder(tree, settings.folderName);
+  if (byName) {
+    await saveSettings({ folderId: byName.id });
+    await setState({ pendingFolder: null });
+    return byName;
+  }
+  if (!settings.folderChosen) {
+    const candidates = detectFolders(tree);
+    const strong = candidates.filter((c) => c.count >= 3);
+    if (strong.length === 1 || (strong.length > 1 && strong[0].count >= 5 && strong[0].count >= 3 * (strong[1].count || 0))) {
+      const pick = strong[0];
+      await saveSettings({ folderId: pick.id, folderName: pick.title, folderChosen: true });
+      await setState({ pendingFolder: null, adoptedFolder: { title: pick.title, count: pick.count } });
+      return findFolder(tree, pick.title);
+    }
+    if (candidates.length) {
+      await setState({ pendingFolder: { candidates: candidates.slice(0, 5).map(({ id, title, count }) => ({ id, title, count })) } });
+      return null;
+    }
+  }
+  await setState({ pendingFolder: null });
   const root = tree[0]?.children || [];
   const bar = root.find((n) => /bookmarks bar|barra/i.test(n.title || '')) || root[0];
   if (!bar) return null;
   try {
-    return await chrome.bookmarks.create({ parentId: bar.id, title: String(folderName || 'Manga').trim() || 'Manga' });
+    const made = await chrome.bookmarks.create({ parentId: bar.id, title: String(settings.folderName || 'Manga').trim() || 'Manga' });
+    await saveSettings({ folderId: made.id, folderChosen: true });
+    return made;
   } catch (e) {
     console.warn('Manga Next: could not create the bookmarks folder', e);
     return null;
   }
 }
 
-async function readFolder(folderName) {
-  const folder = await ensureFolder(folderName);
+async function readFolder(settings) {
+  const folder = await ensureFolder(settings);
   if (!folder) return { found: false, entries: [] };
   const sub = await chrome.bookmarks.getSubTree(folder.id);
   const bookmarks = collectBookmarks(sub[0]);
@@ -243,8 +314,7 @@ async function restoreFromTrash(trashId) {
   try {
     await chrome.bookmarks.get(parentId);
   } catch {
-    const tree = await chrome.bookmarks.getTree();
-    const folder = findFolder(tree, settings.folderName);
+    const folder = await ensureFolder(settings);
     if (!folder) return { error: `No folder named ${settings.folderName} to restore into` };
     parentId = folder.id;
   }
@@ -348,7 +418,7 @@ async function refreshKeys(keys, { settings, state } = {}) {
 async function syncBookmarks() {
   if (refreshing) await refreshing; // let a running full check finish so we read fresh results
   const settings = await getSettings();
-  const { found, entries: raw } = await readFolder(settings.folderName);
+  const { found, entries: raw } = await readFolder(settings);
   const state = await getState();
   const entries = await pruneOldBookmarks(raw, settings, state.keep);
   const liveIds = new Set(entries.map((e) => e.bookmarkId));
@@ -371,7 +441,7 @@ function refreshAll(opts = {}) {
     await setState({ running: Date.now() });
     try {
       const settings = await getSettings();
-      const { found, entries: raw } = await readFolder(settings.folderName);
+      const { found, entries: raw } = await readFolder(settings);
       const state = await getState();
       const entries = await pruneOldBookmarks(raw, settings, state.keep);
       const keys = [...new Set(entries.map((e) => e.key))];

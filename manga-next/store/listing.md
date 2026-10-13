@@ -47,7 +47,7 @@ Ready-made 1280×800 screenshots are in `store/screenshots/` (regenerate with `s
 
 **Permission justifications:**
 
-- `bookmarks` — Reads the titles and URLs of bookmarks inside the folder the user chooses, to identify each series and the chapter the user is on. Creates that folder in the bookmarks bar if it does not exist. With the user's setting on, removes the previous bookmark of a series when the series is bookmarked again.
+- `bookmarks` — Reads the titles and URLs of bookmarks inside the folder the user chooses, to identify each series and the chapter the user is on. If no folder by that name exists, detects an existing folder that already holds chapter bookmarks (by name or contents) and asks the user to confirm when there is more than one; creates a new folder in the bookmarks bar only when none fits. With the user's setting on, removes the previous bookmark of a series when the series is bookmarked again.
 - `storage` — Stores settings, cached release data, and the bin of removed bookmarks locally.
 - `alarms` — Re-checks release dates on a schedule (every 6 hours by default).
 - `notifications` — Tells the user when a chapter newer than their bookmark is available.

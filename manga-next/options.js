@@ -14,8 +14,11 @@ async function load() {
 
 $('save').addEventListener('click', async () => {
   const before = await getSettings();
+  const typedName = $('folderName').value.trim() || 'Manga';
   const next = await saveSettings({
-    folderName: $('folderName').value.trim() || 'Manga',
+    folderName: typedName,
+    // a typed name is an explicit choice: look it up by name (or create it), never auto-detect another folder
+    ...(typedName !== before.folderName ? { folderId: null, folderChosen: true } : {}),
     intervalHours: Math.min(168, Math.max(1, Number($('intervalHours').value) || 6)),
     notify: $('notify').checked,
     autoClean: $('autoClean').checked,
@@ -24,7 +27,7 @@ $('save').addEventListener('click', async () => {
   });
   await chrome.runtime.sendMessage({ type: 'reschedule' });
   if (next.folderName !== before.folderName || next.providerOrder !== before.providerOrder || next.comickBase !== before.comickBase) {
-    await chrome.storage.local.set({ matches: {}, results: {} });
+    await chrome.storage.local.set({ matches: {}, results: {}, pendingFolder: null, adoptedFolder: null });
     chrome.runtime.sendMessage({ type: 'refresh', force: true });
   }
   $('saved').textContent = 'Saved';

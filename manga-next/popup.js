@@ -156,6 +156,19 @@ async function render() {
     renderBin(state, now);
     return;
   }
+  if (state.pendingFolder?.candidates?.length) {
+    summaryEl.textContent = '';
+    renderFolderChooser(state.pendingFolder.candidates, settings);
+    return;
+  }
+  if (state.adoptedFolder) {
+    const note = el('div', { class: 'binbar' });
+    note.appendChild(el('span', {}, `Using your “${state.adoptedFolder.title}” folder (${state.adoptedFolder.count} chapters found). Change it in settings.`));
+    const ok = el('button', {}, 'OK');
+    ok.addEventListener('click', () => chrome.runtime.sendMessage({ type: 'dismissAdopted' }));
+    note.appendChild(ok);
+    listEl.appendChild(note);
+  }
   if (!state.folderFound) {
     summaryEl.textContent = '';
     const box = el('div', { class: 'empty' });
@@ -292,6 +305,35 @@ function renderRow(entry, res, settings, now) {
     if (fixbox.classList.contains('open')) input.focus();
   });
   return row;
+}
+
+function renderFolderChooser(candidates, settings) {
+  const box = el('div', { class: 'empty' });
+  box.appendChild(el('strong', {}, 'Which folder holds your manga bookmarks?'));
+  box.append('These folders already look like one. Pick it, or start a fresh folder.');
+  listEl.appendChild(box);
+  for (const c of candidates) {
+    const row = el('div', { class: 'row' });
+    const main = el('div', { class: 'main' });
+    const title = el('div', { class: 'title' });
+    title.appendChild(el('span', { class: 'name' }, c.title));
+    title.appendChild(el('span', { class: 'pill muted' }, `${c.count} chapters`));
+    main.appendChild(title);
+    row.appendChild(main);
+    const side = el('div', { class: 'side' });
+    const use = el('button', { class: 'read' }, 'Use this');
+    use.addEventListener('click', () => chrome.runtime.sendMessage({ type: 'chooseFolder', id: c.id }));
+    side.appendChild(use);
+    row.appendChild(side);
+    main.addEventListener('click', () => use.click());
+    listEl.appendChild(row);
+  }
+  const bar = el('div', { class: 'binbar' });
+  bar.appendChild(el('span', {}, `None of these. Create a new “${settings.folderName}” folder in the bookmarks bar.`));
+  const create = el('button', {}, 'Create');
+  create.addEventListener('click', () => chrome.runtime.sendMessage({ type: 'chooseFolder' }));
+  bar.appendChild(create);
+  listEl.appendChild(bar);
 }
 
 function renderBin(state, now) {
