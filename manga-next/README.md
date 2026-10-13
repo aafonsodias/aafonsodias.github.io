@@ -56,6 +56,11 @@ Comick API base URL in case the API moves domains again.
   is where to look.
 - Only English releases are counted.
 
+## Support me
+
+If Manga Next saves you from re-bookmarking every week, you can buy me a coffee on Ko-fi:
+https://ko-fi.com/YOUR_KOFI_NAME
+
 ## Development
 
 Plain Manifest V3, no build step. Files:
