@@ -17,18 +17,35 @@ Know when the next chapter of every manga in your bookmarks folder comes out. No
 
 You already bookmark the chapter you stopped at. Manga Next does the rest.
 
-It reads the bookmarks in your "Manga" folder and, for every series, shows:
+WHAT IT SHOWS
+For every manga in your bookmarks folder:
 • the chapter you are on and the latest chapter out in English
-• when the next chapter is expected, worked out from the series' real release rhythm ("weekly, usually Tuesday")
+• when the next chapter is expected, worked out from the series' real release rhythm ("weekly, usually Tuesday"), and how late it is when a group slips
 • whether a series is on hiatus, finished, or simply quiet for longer than usual
+• the series cover, so your list looks like your shelf
 
-A badge on the icon counts the series with a new chapter waiting. A notification tells you the moment one appears. One click opens the next chapter.
+WHEN SOMETHING DROPS
+• a badge on the icon counts the series with a new chapter waiting
+• a notification the moment one appears
+• "Read ch N" opens the next unread chapter in one click
+• smart timing: each series is checked two hours before its expected release and then hourly until the chapter lands, so you rarely wait more than an hour after a drop
 
-Keeps your folder tidy: when you bookmark a newer chapter, the older bookmark of the same series is removed automatically. Everything removed goes to a bin for 60 days, with one-click restore.
+ZERO UPKEEP
+• keep bookmarking the chapter you stopped at; your latest save is where you are
+• the previous bookmark of that series is tidied away automatically, one bookmark per series
+• everything removed goes to a bin for 60 days with one-click restore, so a wrong delete is never final
+• no folder yet? It finds the one you already use, or creates one for you
 
-Works with any reading site. Release dates come from Comick and MangaUpdates, two public databases that cover almost every scanlation group.
+DISCOVER
+• "You might like" suggests series read alongside the ones you follow, with Read ch 1, the series page, Skip for 30 days, or Not for me
 
-No account. No sign-in. Nothing leaves your browser except the series title sent to those two databases to look up dates.
+WORKS ANYWHERE
+• any reading site. Release dates come from Comick and MangaUpdates, two public databases covering almost every scanlation group
+• wrong match? Fix it in one click by searching another name or pasting a link
+• Alt+Shift+M opens the popup from anywhere
+
+NO ACCOUNT. NO TRACKING.
+Runs entirely in your browser. Nothing leaves it except the series title sent to those two databases to look up dates.
 
 **Homepage:** https://github.com/aafonsodias/aafonsodias.github.io/tree/main/manga-next
 **Support URL:** https://github.com/aafonsodias/aafonsodias.github.io/issues
@@ -58,6 +75,8 @@ Ready-made 1280×800 screenshots are in `store/screenshots/` (regenerate with `s
 **Data usage:** Tick nothing under "What user data do you plan to collect?" The extension collects no personally identifiable information, no health, financial, authentication, personal communications, location, web history, user activity, or website content. Then certify the three disclosures.
 
 **Privacy policy URL:** https://aafonsodias.github.io/manga-next/privacy.html
+
+**Rights:** the code is proprietary (see `LICENSE`). Add the line "© 2026 aafonsodias. All rights reserved." at the end of the description if you want it shown on the listing.
 
 ## Distribution
 

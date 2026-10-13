@@ -18,7 +18,7 @@ const results = {
   'eternally regressing knight': r({ latestChapter: 112.7, latestDate: now - 30 * DAY, daysSince: 30, suspectHiatus: true, late: true, nextExpected: now - 23 * DAY, nextChance: now + 5 * DAY, matchTitle: 'Eternally Regressing Knight', matchUrl: '#' }),
   'tensei shitara slime datta ken': r({ latestChapter: 146, latestDate: now - 20 * DAY, cadenceDays: 30, cadenceLabel: 'monthly', nextExpected: now + 10 * DAY, nextChance: now + 10 * DAY, matchTitle: 'Tensei Shitara Slime Datta Ken', matchUrl: '#' }),
 };
-const state = { entries, results, lastRun: now - 12 * 60000, running: 0, folderFound: true, smartNext: now + 3 * 3600e3, trash: [{ id: 't1', key: 'the world after the fall', series: 'The World After the Fall', chapter: 240, url: '#', removedAt: now - 3600e3, by: 'you' }, { id: 't2', key: 'pick me up infinite gacha', series: 'Pick Me Up, Infinite Gacha', chapter: 221, url: '#', removedAt: now - 5 * DAY, by: 'auto', replacedBy: 222 }], keep: [] };
+const state = { entries, results, lastRun: now - 12 * 60000, running: 0, folderFound: true, smartNext: now + 3 * 3600e3, suggestions: [{ key: 'comick:r1', provider: 'comick', title: 'Solo Leveling', cover: null, url: '#', score: 3, from: ['Dungeon Odyssey', 'Solo Leveling: Ragnarok'] }, { key: 'comick:r2', provider: 'comick', title: 'The Beginning After the End', cover: null, url: '#', score: 2, from: ['Omniscient Reader\'s Viewpoint'] }], trash: [{ id: 't1', key: 'the world after the fall', series: 'The World After the Fall', chapter: 240, url: '#', removedAt: now - 3600e3, by: 'you' }, { id: 't2', key: 'pick me up infinite gacha', series: 'Pick Me Up, Infinite Gacha', chapter: 221, url: '#', removedAt: now - 5 * DAY, by: 'auto', replacedBy: 222 }], keep: [] };
 const stub = `window.chrome = { storage: { sync: { get: async () => ({}), set: async () => {} }, local: { get: async () => (${JSON.stringify(state)}), set: async () => {} }, onChanged: { addListener() {} } }, runtime: { sendMessage: async () => ({ ok: true }), openOptionsPage() {} }, tabs: { create() {} } };`;
 const srv = spawn('python3', ['-m', 'http.server', '8765', '--bind', '127.0.0.1'], { cwd: process.cwd(), stdio: 'ignore' });
 await new Promise((r) => setTimeout(r, 800));
@@ -40,7 +40,7 @@ for (const [name, h, p, src, wide] of shots) {
   const frame = page.frames().find((f) => f !== page.mainFrame() && new URL(f.url()).pathname === want);
   await frame.waitForSelector(src.startsWith('popup') ? '.row' : '#save');
   if (src.includes('bin=1')) { await frame.click('#bin'); await frame.waitForSelector('.binbar'); }
-  await page.screenshot({ path: `${process.env.S}/store-${name}.png` });
+  await page.screenshot({ path: `${process.env.S}/store-${name}.jpg`, type: 'jpeg', quality: 92 });
   await ctx.close();
 }
 await browser.close(); srv.kill(); console.log('store screenshots done');
