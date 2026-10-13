@@ -47,8 +47,9 @@ globalThis.fetch = async (url, opts = {}) => {
     if (u.pathname === '/comic/h1/chapters') return json(weekly(latestPickMeUp));
     if (u.pathname === '/comic/h2/chapters') return json(weekly(27, 3));
     if (u.pathname === '/comic/h9/chapters') return json(weekly(5));
-    if (u.pathname === '/comic/pick-me-up-infinite-gacha') return json({ comic: { hid: 'h1', slug: 'pick-me-up-infinite-gacha', title: 'Pick Me Up, Infinite Gacha', status: 1, last_chapter: String(latestPickMeUp) } });
-    if (u.pathname === '/comic/dungeon-odyssey') return json({ comic: { hid: 'h2', slug: 'dungeon-odyssey', title: 'Dungeon Odyssey', status: 4, last_chapter: '27' } });
+    if (u.pathname === '/comic/pick-me-up-infinite-gacha') return json({ comic: { hid: 'h1', slug: 'pick-me-up-infinite-gacha', title: 'Pick Me Up, Infinite Gacha', status: 1, last_chapter: String(latestPickMeUp), md_covers: [{ b2key: 'cov1.jpg' }], recommendations: [{ up: 40, relates: { hid: 'r1', slug: 'solo-leveling', title: 'Solo Leveling', md_covers: [{ b2key: 'sl.jpg' }] } }, { up: 5, relates: { hid: 'h2', slug: 'dungeon-odyssey', title: 'Dungeon Odyssey' } }] } });
+    if (u.pathname === '/comic/dungeon-odyssey') return json({ comic: { hid: 'h2', slug: 'dungeon-odyssey', title: 'Dungeon Odyssey', status: 4, last_chapter: '27', recommendations: [{ up: 12, relates: { hid: 'r1', slug: 'solo-leveling', title: 'Solo Leveling' } }, { up: 3, relates: { hid: 'r2', slug: 'orv', title: 'Omniscient Reader' } }] } });
+    if (u.pathname === '/comic/r1/chapters') return json({ chapters: [{ hid: 'c1', chap: '1' }] });
     if (u.pathname === '/comic/some-real-slug') return json({ comic: { hid: 'h9', slug: 'some-real-slug', title: 'Some Real Title', status: 1, last_chapter: '5' } });
     return json({ error: 'nope' }, 404);
   }
@@ -115,6 +116,18 @@ await new Promise((r) => setTimeout(r, 400));
 const smart = alarms['manga-next-smart'];
 check('smart alarm set 2h before expected', smart && Math.abs(smart.when - (Date.now() + 5 * DAY - 2 * 3600e3)) < 5000, JSON.stringify(smart));
 check('popup can show next check time', typeof store.local.smartNext === 'number');
+
+// suggestions: Solo Leveling recommended by two followed series ranks first; Dungeon Odyssey (followed) is excluded
+check('cover stored', store.local.results['pick me up infinite gacha'].cover === 'https://meo.comick.pictures/cov1.jpg');
+let sug = store.local.suggestions;
+check('suggestions built, followed series excluded, best first', sug.length === 2 && sug[0].title === 'Solo Leveling' && sug[0].from.length === 2 && !sug.some((x) => x.title === 'Dungeon Odyssey'), JSON.stringify(sug.map((x) => [x.title, x.from])));
+check('suggestion cover carried', sug[0].cover === 'https://meo.comick.pictures/sl.jpg');
+const fc = await call({ type: 'suggestFirstChapter', id: sug[0].key });
+check('first chapter url', fc?.url === 'https://comick.io/comic/solo-leveling/c1-chapter-1-en', JSON.stringify(fc));
+await call({ type: 'suggestSkip', id: sug[0].key });
+check('skip hides for 30 days', store.local.suggestions.length === 1 && store.local.suggestions[0].title === 'Omniscient Reader');
+await call({ type: 'suggestExclude', id: store.local.suggestions[0].key });
+check('exclude persists in settings', store.sync.settings.suggestExcluded['comick:r2'] === true && store.local.suggestions.length === 0);
 
 // 2. second run: nothing new, still no notification
 store.local.lastRun = 0; store.local.running = 0;

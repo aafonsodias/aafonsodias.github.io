@@ -52,6 +52,9 @@ Nothing to sign up for, no keys. It runs entirely in your browser.
   your bookmark instead). Clicking the row opens your bookmark.
 - **New only** hides everything you are caught up on. Hover a row to see the last few releases and groups.
 - Rows are grouped: New chapters, Coming up (soonest first), Quiet, Finished, Needs attention.
+- Every row shows the series cover. **You might like** at the bottom suggests up to three series
+  recommended alongside the ones you follow, with *Read ch 1*, a link to the series page, *Skip*
+  (hidden 30 days) and *Not for me* (never again). Turn suggestions off in settings.
 - **next: Tue 14 Oct (in 2 days) · weekly, usually Tue**: the estimate and the rhythm it is based on.
 - **BREAK?** / **HIATUS** / **DONE**: quiet for too long, flagged as hiatus by the source, or completed.
 - **CHECK MATCH**: the series the source matched does not look like your bookmark title. Follow the

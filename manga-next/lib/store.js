@@ -10,6 +10,8 @@ export const DEFAULT_SETTINGS = {
   providerOrder: 'comick', // or 'mangaupdates'
   comickBase: '',
   overrides: {}, // seriesKey -> search text or pasted comick/mangaupdates link
+  suggest: true, // show series you might like, based on what you follow
+  suggestExcluded: {}, // suggestion id -> true, never show again
 };
 
 export async function getSettings() {
@@ -25,7 +27,7 @@ export async function saveSettings(patch) {
 }
 
 export async function getState() {
-  const s = await chrome.storage.local.get(['entries', 'matches', 'results', 'lastRun', 'running', 'folderFound', 'trash', 'keep', 'smartNext', 'pendingFolder', 'adoptedFolder']);
+  const s = await chrome.storage.local.get(['entries', 'matches', 'results', 'lastRun', 'running', 'folderFound', 'trash', 'keep', 'smartNext', 'pendingFolder', 'adoptedFolder', 'suggestions', 'suggestSnoozed']);
   return {
     entries: s.entries || [],
     matches: s.matches || {},
@@ -38,6 +40,8 @@ export async function getState() {
     smartNext: s.smartNext || null, // when the next release-window check fires
     pendingFolder: s.pendingFolder || null, // { candidates: [{id, title, count}] } when the user must pick
     adoptedFolder: s.adoptedFolder || null, // { title, count } one-time notice after auto-adopting a folder
+    suggestions: s.suggestions || [], // [{ id, provider, title, cover, url, score, from: [series titles] }]
+    suggestSnoozed: s.suggestSnoozed || {}, // suggestion id -> timestamp until which it is hidden
   };
 }
 

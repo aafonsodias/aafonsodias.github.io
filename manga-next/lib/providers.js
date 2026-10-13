@@ -20,6 +20,12 @@ function postJSON(url, body) {
   return getJSON(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 }
 
+// Comick serves covers from its image host; md_covers carries the file key.
+function comickCover(covers) {
+  const key = Array.isArray(covers) ? covers.find((c) => c?.b2key)?.b2key : null;
+  return key ? `https://meo.comick.pictures/${key}` : null;
+}
+
 // Pick the candidate whose title (or alternative title) matches the query best.
 export function pickBest(candidates, query) {
   if (!candidates?.length) return null;
@@ -65,6 +71,7 @@ export const comick = {
             title: c.title || c.slug || c.hid,
             alt: (c.md_titles || []).map((t) => t?.title).filter(Boolean),
             url: c.slug ? `https://comick.io/comic/${c.slug}` : null,
+            cover: comickCover(c.md_covers),
           }));
       } catch (e) {
         lastErr = e;
@@ -108,10 +115,29 @@ export const comick = {
       const data = await getJSON(`${match.host}/comic/${encodeURIComponent(match.slug || match.id)}`);
       const c = data?.comic || data;
       const status = { 1: 'ongoing', 2: 'completed', 3: 'cancelled', 4: 'hiatus' }[c?.status] || null;
-      return { status, latestChapter: parseChapterNumber(c?.last_chapter) };
+      const recommendations = (Array.isArray(c?.recommendations) ? c.recommendations : [])
+        .map((r) => ({ rel: r?.relates, votes: Number(r?.up) || 0 }))
+        .filter(({ rel }) => rel && rel.hid && rel.slug)
+        .map(({ rel, votes }) => ({ provider: 'comick', id: rel.hid, slug: rel.slug, title: rel.title || rel.slug, cover: comickCover(rel.md_covers), url: `https://comick.io/comic/${rel.slug}`, votes }));
+      return { status, latestChapter: parseChapterNumber(c?.last_chapter), cover: comickCover(c?.md_covers), recommendations };
     } catch {
       return { status: null, latestChapter: null };
     }
+  },
+
+  // URL of the first English chapter, for trying a suggested series.
+  async firstChapterUrl(ref, settings) {
+    const hosts = settings?.comickBase ? [settings.comickBase, ...COMICK_HOSTS] : COMICK_HOSTS;
+    for (const host of hosts) {
+      try {
+        const data = await getJSON(`${host}/comic/${encodeURIComponent(ref.id)}/chapters?lang=en&chap-order=1&limit=1`);
+        const ch = data?.chapters?.[0];
+        if (ch?.hid) return `https://comick.io/comic/${ref.slug}/${ch.hid}-chapter-${ch.chap || '1'}-en`;
+      } catch {
+        // try next host
+      }
+    }
+    return ref.url;
   },
 };
 
@@ -192,10 +218,17 @@ export const mangaupdates = {
       if (rec?.completed) status = 'completed';
       else if (text.includes('hiatus')) status = 'hiatus';
       else if (text.includes('ongoing')) status = 'ongoing';
-      return { status, latestChapter: parseChapterNumber(rec?.latest_chapter), statusText: rec?.status || null };
+      const recommendations = (Array.isArray(rec?.recommendations) ? rec.recommendations : [])
+        .filter((r) => r?.series_id != null)
+        .map((r) => ({ provider: 'mangaupdates', id: String(r.series_id), slug: null, title: r.series_name || String(r.series_id), cover: null, url: `https://www.mangaupdates.com/series/${Number(r.series_id).toString(36)}`, votes: Number(r.weight) || 1 }));
+      return { status, latestChapter: parseChapterNumber(rec?.latest_chapter), statusText: rec?.status || null, cover: rec?.image?.url?.original || null, recommendations };
     } catch {
       return { status: null, latestChapter: null };
     }
+  },
+
+  async firstChapterUrl(ref) {
+    return ref.url; // MangaUpdates lists releases, not pages; the series page links to the groups
   },
 };
 

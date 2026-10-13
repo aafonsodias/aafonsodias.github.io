@@ -67,6 +67,26 @@ async function handleMessage(msg) {
     case 'dismissAdopted':
       await setState({ adoptedFolder: null });
       return { ok: true };
+    case 'suggestSkip': {
+      const state = await getState();
+      const suggestSnoozed = { ...state.suggestSnoozed, [msg.id]: Date.now() + 30 * DAY };
+      await setState({ suggestSnoozed });
+      await buildSuggestions(await getSettings());
+      return { ok: true };
+    }
+    case 'suggestExclude': {
+      const settings = await getSettings();
+      await saveSettings({ suggestExcluded: { ...settings.suggestExcluded, [msg.id]: true } });
+      await buildSuggestions(await getSettings());
+      return { ok: true };
+    }
+    case 'suggestFirstChapter': {
+      const state = await getState();
+      const s = state.suggestions.find((x) => x.key === msg.id);
+      if (!s) return { error: 'Suggestion is gone' };
+      const url = await providers[s.provider].firstChapterUrl(s, await getSettings());
+      return { ok: true, url };
+    }
     case 'restore':
       return restoreFromTrash(msg.trashId);
     case 'emptyTrash':
@@ -387,6 +407,8 @@ async function checkSeries(entry, matches, settings) {
       matchTitle: match.title,
       matchUrl: match.url,
       uncertain: !!match.uncertain,
+      cover: info.cover || match.cover || null,
+      recs: (info.recommendations || []).slice(0, 12),
       query,
       recent: releases.slice(0, 5),
       checkedAt,
@@ -413,6 +435,40 @@ async function refreshKeys(keys, { settings, state } = {}) {
   }
   await updateBadgeAndNotify(entries, results, settings, state.lastRun);
   await scheduleSmart();
+  await buildSuggestions(settings);
+}
+
+// ---------- suggestions ----------
+
+// Series recommended alongside the ones you follow, ranked by how many of your series point at them
+// and how strongly. Followed, excluded and snoozed series are left out.
+async function buildSuggestions(settings) {
+  if (!settings.suggest) {
+    await setState({ suggestions: [] });
+    return;
+  }
+  const state = await getState();
+  const now = Date.now();
+  const followed = new Set();
+  for (const e of state.entries) followed.add(seriesKey(e.series || e.title));
+  for (const r of Object.values(state.results)) if (r?.matchTitle) followed.add(seriesKey(r.matchTitle));
+  const excluded = settings.suggestExcluded || {};
+  const snoozed = state.suggestSnoozed || {};
+  const pool = new Map();
+  for (const e of primaryEntries(state.entries)) {
+    const res = state.results[e.key];
+    for (const rec of res?.recs || []) {
+      const id = `${rec.provider}:${rec.id}`;
+      if (excluded[id] || (snoozed[id] && snoozed[id] > now) || followed.has(seriesKey(rec.title))) continue;
+      const cur = pool.get(id) || { ...rec, key: id, score: 0, from: [] };
+      cur.score += 1 + Math.log10(1 + (rec.votes || 0));
+      if (!cur.from.includes(e.series) && cur.from.length < 3) cur.from.push(e.series || e.title);
+      if (!cur.cover && rec.cover) cur.cover = rec.cover;
+      pool.set(id, cur);
+    }
+  }
+  const suggestions = [...pool.values()].sort((a, b) => b.score - a.score || a.title.localeCompare(b.title)).slice(0, 8);
+  await setState({ suggestions });
 }
 
 async function syncBookmarks() {

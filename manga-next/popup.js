@@ -87,6 +87,8 @@ function isNew(entry, res) {
 }
 
 // Which section a row belongs to, in display order.
+const SUGGEST_LIMIT = 3;
+
 const SECTIONS = [
   { id: 'new', label: 'New chapters' },
   { id: 'soon', label: 'Coming up' },
@@ -221,6 +223,61 @@ async function render() {
     }
     for (const { entry, res } of items) listEl.appendChild(renderRow(entry, res, settings, now));
   }
+  if (!newOnly && settings.suggest && state.suggestions?.length) renderSuggestions(state.suggestions.slice(0, SUGGEST_LIMIT));
+}
+
+function coverEl(url, title) {
+  const box = el('div', { class: 'cover' });
+  if (url) {
+    const img = el('img', { src: url, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' });
+    img.addEventListener('error', () => { img.remove(); box.textContent = initials(title); });
+    box.appendChild(img);
+  } else {
+    box.textContent = initials(title);
+  }
+  return box;
+}
+
+function initials(title) {
+  return String(title || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+}
+
+function renderSuggestions(list) {
+  const h = el('div', { class: 'section forYou' }, 'You might like');
+  h.appendChild(el('span', { class: 'count' }, 'based on what you follow'));
+  listEl.appendChild(h);
+  for (const s of list) {
+    const row = el('div', { class: 'row suggest' });
+    const main = el('div', { class: 'main' });
+    const body = el('div', { class: 'body' });
+    const title = el('div', { class: 'title' });
+    title.appendChild(el('span', { class: 'name' }, s.title));
+    body.appendChild(title);
+    body.appendChild(el('div', { class: 'meta' }, `Because you read ${s.from.join(', ')}`));
+    const links = el('div', { class: 'links' });
+    const first = el('button', { class: 'read small' }, 'Read ch 1');
+    first.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      first.disabled = true;
+      const r = await chrome.runtime.sendMessage({ type: 'suggestFirstChapter', id: s.key });
+      chrome.tabs.create({ url: r?.url || s.url });
+    });
+    links.appendChild(first);
+    const page = el('a', { href: s.url, target: '_blank', rel: 'noopener' }, 'Series page');
+    links.appendChild(page);
+    const skip = el('button', { class: 'ghost small', title: 'Hide for 30 days' }, 'Skip');
+    skip.addEventListener('click', () => chrome.runtime.sendMessage({ type: 'suggestSkip', id: s.key }));
+    links.appendChild(skip);
+    const never = el('button', { class: 'ghost small', title: 'Never suggest this series' }, 'Not for me');
+    never.addEventListener('click', () => chrome.runtime.sendMessage({ type: 'suggestExclude', id: s.key }));
+    links.appendChild(never);
+    body.appendChild(links);
+    main.appendChild(coverEl(s.cover, s.title));
+    main.appendChild(body);
+    main.addEventListener('click', () => chrome.tabs.create({ url: s.url }));
+    row.appendChild(main);
+    listEl.appendChild(row);
+  }
 }
 
 function renderRow(entry, res, settings, now) {
@@ -230,6 +287,9 @@ function renderRow(entry, res, settings, now) {
 
   const main = el('div', { class: 'main', title: recentTooltip(res) || entry.url });
   main.addEventListener('click', () => chrome.tabs.create({ url: entry.url }));
+  main.appendChild(coverEl(res?.cover, entry.series || entry.title));
+  const body = el('div', { class: 'body' });
+  main.appendChild(body);
 
   const title = el('div', { class: 'title' });
   title.appendChild(el('span', { class: 'name' }, entry.series || entry.title));
@@ -239,7 +299,7 @@ function renderRow(entry, res, settings, now) {
   else if (res?.status === 'completed') title.appendChild(el('span', { class: 'pill muted' }, 'DONE'));
   else if (res?.error && res.latestChapter == null) title.appendChild(el('span', { class: 'pill bad' }, 'ERROR'));
   if (res?.uncertain) title.appendChild(el('span', { class: 'pill warn', title: 'The matched series title does not look like your bookmark. Check the “via” link, or press fix.' }, 'CHECK MATCH'));
-  main.appendChild(title);
+  body.appendChild(title);
 
   const meta = el('div', { class: 'meta' });
   const you = el('span');
@@ -251,9 +311,9 @@ function renderRow(entry, res, settings, now) {
   latest.appendChild(el('b', {}, res?.latestChapter != null ? String(res.latestChapter) : '?'));
   if (res?.latestDate) latest.append(` (${relDays(res.latestDate, now)})`);
   meta.appendChild(latest);
-  main.appendChild(meta);
+  body.appendChild(meta);
 
-  main.appendChild(el('div', { class: `next ${d.tone}` }, d.text));
+  body.appendChild(el('div', { class: `next ${d.tone}` }, d.text));
 
   if (res?.matchTitle) {
     const via = el('div', { class: 'via' });
@@ -261,7 +321,7 @@ function renderRow(entry, res, settings, now) {
     const a = el('a', { href: res.matchUrl || '#', target: '_blank', rel: 'noopener' }, res.matchTitle);
     a.addEventListener('click', (e) => e.stopPropagation());
     via.appendChild(a);
-    main.appendChild(via);
+    body.appendChild(via);
   }
   row.appendChild(main);
 

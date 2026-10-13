@@ -8,6 +8,7 @@ async function load() {
   $('intervalHours').value = s.intervalHours;
   $('notify').checked = !!s.notify;
   $('autoClean').checked = !!s.autoClean;
+  $('suggest').checked = !!s.suggest;
   $('providerOrder').value = s.providerOrder;
   $('comickBase').value = s.comickBase || '';
 }
@@ -22,6 +23,7 @@ $('save').addEventListener('click', async () => {
     intervalHours: Math.min(168, Math.max(1, Number($('intervalHours').value) || 6)),
     notify: $('notify').checked,
     autoClean: $('autoClean').checked,
+    suggest: $('suggest').checked,
     providerOrder: $('providerOrder').value,
     comickBase: $('comickBase').value.trim().replace(/\/+$/, ''),
   });
