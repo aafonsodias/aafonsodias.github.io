@@ -7,6 +7,7 @@ async function load() {
   $('folderName').value = s.folderName;
   $('intervalHours').value = s.intervalHours;
   $('notify').checked = !!s.notify;
+  $('autoClean').checked = !!s.autoClean;
   $('providerOrder').value = s.providerOrder;
   $('comickBase').value = s.comickBase || '';
 }
@@ -17,6 +18,7 @@ $('save').addEventListener('click', async () => {
     folderName: $('folderName').value.trim() || 'Manga',
     intervalHours: Math.min(168, Math.max(1, Number($('intervalHours').value) || 6)),
     notify: $('notify').checked,
+    autoClean: $('autoClean').checked,
     providerOrder: $('providerOrder').value,
     comickBase: $('comickBase').value.trim().replace(/\/+$/, ''),
   });

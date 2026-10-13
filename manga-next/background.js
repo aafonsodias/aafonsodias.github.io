@@ -108,10 +108,37 @@ async function readFolder(folderName) {
       url: b.url,
       series: parsed.series,
       chapter: parsed.chapter,
+      dateAdded: b.dateAdded || 0,
       key: parsed.key || seriesKey(b.url),
     };
   });
   return { found: true, entries };
+}
+
+// You bookmark chapter 65; the chapter 64 bookmark of the same series goes away.
+// Keeps the highest chapter per series (newest bookmark on a tie). Bookmarks without a chapter are left alone.
+async function pruneOldBookmarks(entries, settings) {
+  if (!settings.autoClean) return entries;
+  const byKey = new Map();
+  for (const e of entries) {
+    if (e.chapter == null) continue;
+    if (!byKey.has(e.key)) byKey.set(e.key, []);
+    byKey.get(e.key).push(e);
+  }
+  const removed = new Set();
+  for (const list of byKey.values()) {
+    if (list.length < 2) continue;
+    list.sort((a, b) => b.chapter - a.chapter || b.dateAdded - a.dateAdded);
+    for (const old of list.slice(1)) {
+      try {
+        await chrome.bookmarks.remove(old.bookmarkId);
+        removed.add(old.bookmarkId);
+      } catch (e) {
+        console.warn('Manga Next: could not remove old bookmark', old.title, e);
+      }
+    }
+  }
+  return removed.size ? entries.filter((e) => !removed.has(e.bookmarkId)) : entries;
 }
 
 // ---------- matching + checking ----------
@@ -206,7 +233,8 @@ async function refreshKeys(keys, { settings, state } = {}) {
 
 async function syncBookmarks() {
   const settings = await getSettings();
-  const { found, entries } = await readFolder(settings.folderName);
+  const { found, entries: raw } = await readFolder(settings.folderName);
+  const entries = await pruneOldBookmarks(raw, settings);
   const state = await getState();
   const keys = new Set(entries.map((e) => e.key));
   for (const k of Object.keys(state.results)) if (!keys.has(k)) delete state.results[k];
@@ -225,7 +253,8 @@ function refreshAll(opts = {}) {
     await setState({ running: Date.now() });
     try {
       const settings = await getSettings();
-      const { found, entries } = await readFolder(settings.folderName);
+      const { found, entries: raw } = await readFolder(settings.folderName);
+      const entries = await pruneOldBookmarks(raw, settings);
       const state = await getState();
       const keys = [...new Set(entries.map((e) => e.key))];
       for (const k of Object.keys(state.results)) if (!keys.includes(k)) delete state.results[k];

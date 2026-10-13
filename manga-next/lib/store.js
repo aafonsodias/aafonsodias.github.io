@@ -4,6 +4,7 @@ export const DEFAULT_SETTINGS = {
   folderName: 'Manga',
   intervalHours: 6,
   notify: true,
+  autoClean: true, // remove the older bookmark of a series when a newer chapter is bookmarked
   providerOrder: 'comick', // or 'mangaupdates'
   comickBase: '',
   overrides: {}, // seriesKey -> search text or pasted comick/mangaupdates link

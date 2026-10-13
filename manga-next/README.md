@@ -32,6 +32,9 @@ Nothing to sign up for, no keys. It runs entirely in your browser.
    projects the next one. If a series is more than one and a half gaps late it says so, and
    if it is silent for more than two and a half gaps it marks it as probably on a break.
 5. It re-checks every 6 hours (change this in settings) and whenever you edit the folder.
+6. When you bookmark a newer chapter of a series you already have in the folder, the older
+   bookmark of that series is deleted automatically, so the folder holds one bookmark per series.
+   Turn this off in settings if you prefer to clean up by hand.
 
 ## Reading the popup
 
