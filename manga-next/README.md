@@ -31,7 +31,9 @@ Nothing to sign up for, no keys. It runs entirely in your browser.
 4. It takes the median gap between the last releases, works out the usual weekday, and
    projects the next one. If a series is more than one and a half gaps late it says so, and
    if it is silent for more than two and a half gaps it marks it as probably on a break.
-5. It re-checks every 6 hours (change this in settings) and whenever you edit the folder.
+5. It re-checks every 6 hours (change this in settings) and whenever you edit the folder. It also
+   checks smart: two hours before a series' expected release it starts checking that series hourly,
+   and stops once the chapter is out or two days have passed. The footer shows when the next check is.
    Press **Alt+Shift+M** to open the popup from anywhere (change it at `chrome://extensions/shortcuts`).
 6. When you bookmark a series you already have in the folder, its previous bookmark is deleted
    automatically, so the folder holds one bookmark per series. Your most recent save always wins,

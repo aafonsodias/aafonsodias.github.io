@@ -6,6 +6,9 @@ import { providers, providerOrder, pickBest } from './lib/providers.js';
 import { getSettings, saveSettings, getState, setState, primaryEntries, addToTrash } from './lib/store.js';
 
 const ALARM = 'manga-next-refresh';
+const SMART_ALARM = 'manga-next-smart';
+const HOUR = 3600000;
+const DAY = 24 * HOUR;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let refreshing = null;
 
@@ -19,6 +22,7 @@ chrome.runtime.onStartup.addListener(async () => {
 });
 chrome.alarms.onAlarm.addListener((a) => {
   if (a.name === ALARM) refreshAll();
+  if (a.name === SMART_ALARM) refreshDue();
 });
 
 // Re-read the folder when bookmarks change (you re-bookmark after each chapter). Only new series hit the network.
@@ -75,6 +79,56 @@ async function scheduleAlarm() {
   const hours = Math.max(1, Number(settings.intervalHours) || 6);
   await chrome.alarms.clear(ALARM);
   await chrome.alarms.create(ALARM, { periodInMinutes: hours * 60, delayInMinutes: hours * 60 });
+}
+
+// ---------- smart checks around the expected release ----------
+
+// When is this series worth checking next? Two hours before the expected time, then hourly until it
+// shows up or the window closes two days later. Series that already have a new chapter, are finished,
+// or are on hiatus are left to the regular schedule.
+function smartDue(entry, res, now) {
+  if (!res || res.latestChapter == null || hasNew(entry, res)) return null;
+  if (res.status === 'completed' || res.status === 'cancelled' || res.status === 'hiatus') return null;
+  const target = res.nextChance || res.nextExpected;
+  if (!target) return null;
+  const start = target - 2 * HOUR;
+  const end = target + 2 * DAY;
+  if (now < start) return start;
+  if (now <= end) return Math.max(now, (res.checkedAt || 0) + HOUR);
+  return null;
+}
+
+async function scheduleSmart() {
+  const { entries, results } = await getState();
+  const now = Date.now();
+  let next = null;
+  for (const e of primaryEntries(entries)) {
+    const due = smartDue(e, results[e.key], now);
+    if (due != null && (next == null || due < next)) next = due;
+  }
+  await chrome.alarms.clear(SMART_ALARM);
+  if (next == null) {
+    await setState({ smartNext: null });
+    return;
+  }
+  const when = Math.max(next, now + 15 * 60000); // never more often than every 15 minutes
+  await chrome.alarms.create(SMART_ALARM, { when });
+  await setState({ smartNext: when });
+}
+
+// Smart alarm fired: check only the series whose window is open right now.
+async function refreshDue() {
+  if (refreshing) await refreshing;
+  const state = await getState();
+  const now = Date.now();
+  const keys = primaryEntries(state.entries)
+    .filter((e) => {
+      const due = smartDue(e, state.results[e.key], now);
+      return due != null && due <= now + 5 * 60000;
+    })
+    .map((e) => e.key);
+  if (keys.length) await refreshKeys(keys, { state });
+  else await scheduleSmart();
 }
 
 // ---------- bookmarks ----------
@@ -272,6 +326,7 @@ async function refreshKeys(keys, { settings, state } = {}) {
     await sleep(400);
   }
   await updateBadgeAndNotify(entries, results, settings, state.lastRun);
+  await scheduleSmart();
 }
 
 async function syncBookmarks() {
@@ -290,6 +345,7 @@ async function syncBookmarks() {
     await refreshKeys(missing, { settings, state: { ...state, entries } });
   } else {
     await updateBadgeAndNotify(entries, state.results, settings, state.lastRun);
+    await scheduleSmart();
   }
 }
 

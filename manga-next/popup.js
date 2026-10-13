@@ -73,6 +73,15 @@ function agoShort(ts, now) {
   return `${Math.round(h / 24)} d ago`;
 }
 
+function inShort(ts, now) {
+  const mins = Math.round((ts - now) / 60000);
+  if (mins <= 1) return 'any minute';
+  if (mins < 60) return `in ${mins} min`;
+  const h = Math.round(mins / 60);
+  if (h < 36) return `in ${h} h`;
+  return relDays(ts, now);
+}
+
 function isNew(entry, res) {
   return !!res && res.latestChapter != null && entry.chapter != null && res.latestChapter > entry.chapter;
 }
@@ -132,7 +141,11 @@ async function render() {
   const [state, settings] = await Promise.all([getState(), getSettings()]);
   const now = Date.now();
 
-  statusEl.textContent = state.running ? 'checking…' : state.lastRun ? `checked ${agoShort(state.lastRun, now)}` : '';
+  statusEl.textContent = state.running
+    ? 'checking…'
+    : state.lastRun
+      ? `checked ${agoShort(state.lastRun, now)}${state.smartNext ? `, next ${inShort(state.smartNext, now)}` : ''}`
+      : '';
   refreshBtn.disabled = state.running;
   binBtn.textContent = state.trash.length ? `Bin (${state.trash.length})` : 'Bin';
   binBtn.classList.toggle('active', showBin);

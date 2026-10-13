@@ -23,7 +23,7 @@ export async function saveSettings(patch) {
 }
 
 export async function getState() {
-  const s = await chrome.storage.local.get(['entries', 'matches', 'results', 'lastRun', 'running', 'folderFound', 'trash', 'keep']);
+  const s = await chrome.storage.local.get(['entries', 'matches', 'results', 'lastRun', 'running', 'folderFound', 'trash', 'keep', 'smartNext']);
   return {
     entries: s.entries || [],
     matches: s.matches || {},
@@ -33,6 +33,7 @@ export async function getState() {
     folderFound: s.folderFound !== false,
     trash: s.trash || [], // removed bookmarks, newest first
     keep: s.keep || [], // bookmark ids restored from the bin; auto-cleanup leaves them alone
+    smartNext: s.smartNext || null, // when the next release-window check fires
   };
 }
 
