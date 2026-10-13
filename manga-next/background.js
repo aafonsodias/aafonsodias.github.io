@@ -120,8 +120,9 @@ async function readFolder(folderName) {
   return { found: true, entries };
 }
 
-// You bookmark chapter 65; the chapter 64 bookmark of the same series goes away.
-// Keeps the highest chapter per series (newest bookmark on a tie). Bookmarks without a chapter are left alone.
+// You bookmark a chapter; every other bookmark of the same series goes away.
+// The most recently added bookmark wins, even if its chapter is lower: your latest save is where you are.
+// Highest chapter breaks a tie. Bookmarks without a chapter are left alone.
 const selfRemoving = new Set();
 
 async function pruneOldBookmarks(entries, settings, keep = []) {
@@ -136,7 +137,7 @@ async function pruneOldBookmarks(entries, settings, keep = []) {
   const removed = new Set();
   for (const list of byKey.values()) {
     if (list.length < 2) continue;
-    list.sort((a, b) => b.chapter - a.chapter || b.dateAdded - a.dateAdded);
+    list.sort((a, b) => b.dateAdded - a.dateAdded || b.chapter - a.chapter);
     for (const old of list.slice(1)) {
       try {
         selfRemoving.add(old.bookmarkId);

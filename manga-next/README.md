@@ -33,8 +33,9 @@ Nothing to sign up for, no keys. It runs entirely in your browser.
    if it is silent for more than two and a half gaps it marks it as probably on a break.
 5. It re-checks every 6 hours (change this in settings) and whenever you edit the folder.
    Press **Alt+Shift+M** to open the popup from anywhere (change it at `chrome://extensions/shortcuts`).
-6. When you bookmark a newer chapter of a series you already have in the folder, the older
-   bookmark of that series is deleted automatically, so the folder holds one bookmark per series.
+6. When you bookmark a series you already have in the folder, its previous bookmark is deleted
+   automatically, so the folder holds one bookmark per series. Your most recent save always wins,
+   even if it is a lower chapter, because it is where you are.
    Turn this off in settings if you prefer to clean up by hand.
 7. Every bookmark removed from the folder, by the extension or by you, goes to the **Bin** in the
    popup for 60 days. Restore puts it back, and a restored bookmark is never auto-removed again.

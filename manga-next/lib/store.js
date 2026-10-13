@@ -52,12 +52,12 @@ export function setState(patch) {
   return chrome.storage.local.set(patch);
 }
 
-// If the same series is bookmarked more than once (old chapter kept), keep the bookmark with the highest chapter.
+// If the same series is bookmarked more than once, the most recently added bookmark is the one you are on.
 export function primaryEntries(entries) {
   const byKey = new Map();
   for (const e of entries || []) {
     const cur = byKey.get(e.key);
-    if (!cur || (e.chapter ?? -Infinity) > (cur.chapter ?? -Infinity)) byKey.set(e.key, e);
+    if (!cur || (e.dateAdded || 0) > (cur.dateAdded || 0) || ((e.dateAdded || 0) === (cur.dateAdded || 0) && (e.chapter ?? -Infinity) > (cur.chapter ?? -Infinity))) byKey.set(e.key, e);
   }
   return [...byKey.values()];
 }
