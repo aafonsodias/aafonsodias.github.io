@@ -57,6 +57,7 @@ button {
 }
 button:hover { border-color: var(--accent); }
 button:disabled { opacity: .5; cursor: default; }
+button.support { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .row {
   display: flex;
   gap: 8px;

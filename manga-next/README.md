@@ -59,7 +59,9 @@ Comick API base URL in case the API moves domains again.
 ## Support me
 
 If Manga Next saves you from re-bookmarking every week, you can buy me a coffee on Ko-fi:
-https://ko-fi.com/YOUR_KOFI_NAME
+https://ko-fi.com/aafonsodias
+
+The **Support** button in the popup header opens the same page in one click.
 
 ## Development
 

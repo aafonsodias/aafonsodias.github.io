@@ -1,10 +1,12 @@
 import { getSettings, getState, primaryEntries } from './lib/store.js';
 import { DAY } from './lib/predict.js';
+import { KOFI_URL } from './lib/links.js';
 
 const listEl = document.getElementById('list');
 const statusEl = document.getElementById('status');
 const refreshBtn = document.getElementById('refresh');
 const optionsBtn = document.getElementById('options');
+const supportBtn = document.getElementById('support');
 
 const openFix = new Set();
 
@@ -13,6 +15,7 @@ refreshBtn.addEventListener('click', () => {
   chrome.runtime.sendMessage({ type: 'refresh', force: true }).finally(() => (refreshBtn.disabled = false));
 });
 optionsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
+supportBtn.addEventListener('click', () => chrome.tabs.create({ url: KOFI_URL }));
 chrome.storage.onChanged.addListener(() => render());
 
 function startOfDay(ts) {
