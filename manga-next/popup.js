@@ -176,8 +176,8 @@ async function render() {
   if (!entries.length) {
     summaryEl.textContent = '';
     const box = el('div', { class: 'empty' });
-    box.appendChild(el('strong', {}, `The “${settings.folderName}” folder is empty`));
-    box.append('Bookmark the chapter you stopped at into it and come back.');
+    box.appendChild(el('strong', {}, `Your “${settings.folderName}” folder is ready`));
+    box.append('It is in your bookmarks bar. When you stop reading a chapter, bookmark that page into it. Come back here to see when the next one is out.');
     listEl.appendChild(box);
     return;
   }

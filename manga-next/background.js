@@ -152,9 +152,25 @@ function collectBookmarks(node, out = []) {
   return out;
 }
 
-async function readFolder(folderName) {
+// The folder is created in the bookmarks bar when it does not exist, so a new user can start
+// bookmarking straight away. Renaming it in settings creates the new one the same way.
+async function ensureFolder(folderName) {
   const tree = await chrome.bookmarks.getTree();
-  const folder = findFolder(tree, folderName);
+  const existing = findFolder(tree, folderName);
+  if (existing) return existing;
+  const root = tree[0]?.children || [];
+  const bar = root.find((n) => /bookmarks bar|barra/i.test(n.title || '')) || root[0];
+  if (!bar) return null;
+  try {
+    return await chrome.bookmarks.create({ parentId: bar.id, title: String(folderName || 'Manga').trim() || 'Manga' });
+  } catch (e) {
+    console.warn('Manga Next: could not create the bookmarks folder', e);
+    return null;
+  }
+}
+
+async function readFolder(folderName) {
+  const folder = await ensureFolder(folderName);
   if (!folder) return { found: false, entries: [] };
   const sub = await chrome.bookmarks.getSubTree(folder.id);
   const bookmarks = collectBookmarks(sub[0]);

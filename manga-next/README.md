@@ -22,7 +22,8 @@ Nothing to sign up for, no keys. It runs entirely in your browser.
 ## How it works
 
 1. It finds a bookmarks folder named `Manga` (any case, anywhere in your bookmarks) and reads
-   every bookmark in it, including subfolders.
+   every bookmark in it, including subfolders. If you have no such folder, it creates one in your
+   bookmarks bar, so you can start bookmarking right away. Rename it in settings if you like.
 2. From each bookmark title it extracts the series name and chapter, for example
    `Dungeon Odyssey Chapter 27 - Read Online | Asura Scans` gives *Dungeon Odyssey*, chapter 27.
    If the title has no chapter, the URL is used instead.
