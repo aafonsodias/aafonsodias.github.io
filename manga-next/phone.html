@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#5b5bd6">
+<meta name="robots" content="noindex">
+<title>Manga Next</title>
+<link rel="manifest" href='data:application/manifest+json,{"name":"Manga Next","short_name":"Manga Next","start_url":"./phone.html","display":"standalone","background_color":"%23111827","theme_color":"%235b5bd6"}'>
+<style>
+:root { --bg:#fff; --bg-2:#f7f7fb; --fg:#111827; --fg-2:#374151; --muted:#6b7280; --border:#e9e9f0; --accent:#5b5bd6; --accent-soft:#eef0ff; --warn:#b45309; --bad:#b91c1c; --ok:#047857; }
+@media (prefers-color-scheme: dark) { :root { --bg:#15161c; --bg-2:#1c1d25; --fg:#f3f4f6; --fg-2:#d1d5db; --muted:#9ca3af; --border:#2a2c38; --accent:#8b8cf2; --accent-soft:#24264a; --warn:#fbbf24; --bad:#f87171; --ok:#34d399; } }
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+header { position:sticky; top:0; z-index:2; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 16px; padding-top:calc(12px + env(safe-area-inset-top)); background:var(--bg); border-bottom:1px solid var(--border); }
+h1 { font-size:17px; margin:0; font-weight:700; }
+.sub { color:var(--muted); font-size:12px; margin-top:2px; }
+button { font:inherit; font-size:13px; padding:7px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--fg-2); }
+button[aria-pressed="true"] { background:var(--accent-soft); border-color:var(--accent); color:var(--accent); }
+.section { position:sticky; top:62px; z-index:1; padding:8px 16px 6px; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); background:var(--bg-2); border-bottom:1px solid var(--border); }
+.section .count { font-weight:500; letter-spacing:0; text-transform:none; margin-left:4px; }
+.row { display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-bottom:1px solid var(--border); border-left:3px solid transparent; }
+.row.new { border-left-color:var(--accent); background:color-mix(in srgb, var(--accent-soft) 45%, var(--bg)); }
+.row.warn { border-left-color:var(--warn); }
+.cover { flex:none; width:46px; height:64px; border-radius:6px; overflow:hidden; background:var(--bg-2); border:1px solid var(--border); }
+.cover img { width:100%; height:100%; object-fit:cover; display:block; }
+.body { flex:1; min-width:0; }
+.title { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.name { font-weight:700; font-size:16px; }
+.pill { font-size:10px; font-weight:700; letter-spacing:.04em; padding:2px 7px; border-radius:999px; background:var(--accent); color:#fff; white-space:nowrap; }
+.pill.warn { background:#fff4e0; color:var(--warn); } .pill.muted { background:var(--bg-2); color:var(--muted); border:1px solid var(--border); }
+.meta { color:var(--muted); font-size:13px; margin-top:3px; } .meta b { color:var(--fg-2); }
+.next { font-size:14px; margin-top:3px; color:var(--fg-2); } .next.ok { color:var(--ok); font-weight:600; } .next.warn { color:var(--warn); }
+.actions { display:flex; gap:8px; margin-top:10px; }
+a.btn { display:inline-block; font-size:14px; font-weight:600; padding:9px 14px; border-radius:8px; text-decoration:none; background:var(--accent); color:#fff; }
+a.btn.quiet { background:var(--bg-2); color:var(--fg-2); border:1px solid var(--border); font-weight:500; }
+.empty { padding:48px 24px; text-align:center; color:var(--muted); line-height:1.6; }
+.empty strong { display:block; color:var(--fg); font-size:16px; margin-bottom:6px; }
+footer { padding:14px 16px calc(14px + env(safe-area-inset-bottom)); color:var(--muted); font-size:12px; border-top:1px solid var(--border); }
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Manga Next</h1><div class="sub" id="sub"></div></div>
+  <button id="filter" aria-pressed="false">New only</button>
+</header>
+<main id="list"></main>
+<footer id="foot"></footer>
+<script>
+(() => {
+  const DAY = 86400000;
+  const KEY = 'manga-next-phone';
+  const $ = (id) => document.getElementById(id);
+  let newOnly = false;
+  try { newOnly = localStorage.getItem(KEY + ':newOnly') === '1'; } catch {}
+
+  function fromFragment() {
+    const m = location.hash.match(/[#&]d=([A-Za-z0-9_-]+)/);
+    if (!m) return null;
+    try {
+      const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+      const bin = atob(b64 + '==='.slice((b64.length + 3) % 4));
+      const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      const data = JSON.parse(new TextDecoder().decode(bytes));
+      if (data && data.v === 1 && Array.isArray(data.s)) return data;
+    } catch {}
+    return null;
+  }
+  function load() {
+    const fresh = fromFragment();
+    if (fresh) {
+      try { localStorage.setItem(KEY, JSON.stringify(fresh)); } catch {}
+      history.replaceState(null, '', location.pathname); // keep the address bar clean; data is saved on the phone
+      return fresh;
+    }
+    try { const s = localStorage.getItem(KEY); if (s) return JSON.parse(s); } catch {}
+    return null;
+  }
+  function safe(u) { try { const p = new URL(u); return p.protocol === 'https:' || p.protocol === 'http:' ? p.href : null; } catch { return null; } }
+  function startOfDay(ts) { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); }
+  function fmtDate(ts) { return new Date(ts).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); }
+  function relDays(ts, now) { const d = Math.round((startOfDay(ts) - startOfDay(now)) / DAY); if (d === 0) return 'today'; if (d === 1) return 'tomorrow'; if (d === -1) return 'yesterday'; return d > 1 ? `in ${d} days` : `${-d} days ago`; }
+  function ago(ts, now) { const m = Math.max(0, Math.round((now - ts) / 60000)); if (m < 60) return `${m} min ago`; const h = Math.round(m / 60); if (h < 48) return `${h} h ago`; return `${Math.round(h / 24)} days ago`; }
+  function el(tag, attrs = {}, text) { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'class') n.className = v; else n.setAttribute(k, v); } if (text != null) n.textContent = text; return n; }
+
+  function classify(s, now) {
+    const fresh = s.l != null && s.c != null && s.l > s.c;
+    if (fresh) return 'new';
+    if (s.st === 'completed' || s.st === 'cancelled') return 'done';
+    if (s.st === 'hiatus' || s.st === 'break') return 'quiet';
+    return s.x ? 'soon' : 'unknown';
+  }
+  const SECTIONS = [['new', 'New chapters'], ['soon', 'Coming up'], ['quiet', 'Quiet'], ['done', 'Finished'], ['unknown', 'Not checked']];
+
+  function render() {
+    const data = load();
+    const now = Date.now();
+    const list = $('list'); list.textContent = '';
+    $('filter').setAttribute('aria-pressed', String(newOnly));
+    if (!data) {
+      $('sub').textContent = '';
+      const box = el('div', { class: 'empty' });
+      box.appendChild(el('strong', {}, 'Nothing here yet'));
+      box.append('On your computer, open the Manga Next extension and press Phone. Then use Chrome’s “Send to your devices” on that tab, or copy the link here.');
+      list.appendChild(box);
+      $('foot').textContent = '';
+      return;
+    }
+    const rows = data.s.map((s) => ({ s, k: classify(s, now) })).sort((a, b) => (a.s.x || 9e15) - (b.s.x || 9e15));
+    const n = rows.filter((r) => r.k === 'new').length;
+    $('sub').textContent = `${data.s.length} series · ${n} new · synced ${ago(data.t, now)}`;
+    const visible = newOnly ? rows.filter((r) => r.k === 'new') : rows;
+    if (!visible.length) {
+      const box = el('div', { class: 'empty' });
+      box.appendChild(el('strong', {}, 'Nothing new'));
+      box.append('You are caught up. Turn off “New only” to see the rest.');
+      list.appendChild(box);
+    }
+    for (const [id, label] of SECTIONS) {
+      const items = visible.filter((r) => r.k === id);
+      if (!items.length) continue;
+      if (!newOnly) { const h = el('div', { class: 'section' }, label); h.appendChild(el('span', { class: 'count' }, String(items.length))); list.appendChild(h); }
+      for (const { s, k } of items) list.appendChild(row(s, k, now));
+    }
+    $('foot').textContent = 'This list is a copy from your computer. Bookmark the chapter you stop at in Chrome on this phone, into the same folder; Chrome sync carries it back and the extension picks it up.';
+  }
+
+  function row(s, k, now) {
+    const r = el('div', { class: `row${k === 'new' ? ' new' : k === 'quiet' ? ' warn' : ''}` });
+    const cv = safe(s.cv);
+    if (cv) { const c = el('div', { class: 'cover' }); const img = el('img', { src: cv, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' }); img.addEventListener('error', () => c.remove()); c.appendChild(img); r.appendChild(c); }
+    const body = el('div', { class: 'body' });
+    const title = el('div', { class: 'title' });
+    title.appendChild(el('span', { class: 'name' }, s.n));
+    if (k === 'new') title.appendChild(el('span', { class: 'pill' }, `NEW ${s.l}`));
+    else if (s.st === 'hiatus') title.appendChild(el('span', { class: 'pill warn' }, 'HIATUS'));
+    else if (s.st === 'break') title.appendChild(el('span', { class: 'pill warn' }, 'BREAK?'));
+    else if (s.st === 'completed') title.appendChild(el('span', { class: 'pill muted' }, 'DONE'));
+    body.appendChild(title);
+    const meta = el('div', { class: 'meta' });
+    meta.append('you '); meta.appendChild(el('b', {}, s.c != null ? String(s.c) : '?'));
+    meta.append('  latest '); meta.appendChild(el('b', {}, s.l != null ? String(s.l) : '?'));
+    if (s.ld) meta.append(` (${relDays(s.ld, now)})`);
+    body.appendChild(meta);
+    let text = '', tone = '';
+    if (s.st === 'completed') text = 'Completed';
+    else if (s.st === 'hiatus') text = 'On hiatus', tone = 'warn';
+    else if (s.st === 'break') text = 'Quiet for a while, probably on a break', tone = 'warn';
+    else if (s.x) { const rel = relDays(s.x, now); text = `Next ${fmtDate(s.x)} (${rel})${s.r ? ` · ${s.r}` : ''}`; tone = rel === 'today' || rel === 'tomorrow' ? 'ok' : ''; }
+    else text = 'Not enough history to predict';
+    body.appendChild(el('div', { class: `next ${tone}` }, text));
+    const actions = el('div', { class: 'actions' });
+    const nu = safe(s.nu), u = safe(s.u);
+    if (k === 'new' && (nu || u)) actions.appendChild(el('a', { class: 'btn', href: nu || u }, `Read ch ${s.nc}`));
+    if (u) actions.appendChild(el('a', { class: 'btn quiet', href: u }, k === 'new' ? 'Your bookmark' : 'Open'));
+    body.appendChild(actions);
+    r.appendChild(body);
+    return r;
+  }
+
+  $('filter').addEventListener('click', () => { newOnly = !newOnly; try { localStorage.setItem(KEY + ':newOnly', newOnly ? '1' : '0'); } catch {} render(); });
+  window.addEventListener('hashchange', render);
+  render();
+})();
+</script>
+</body>
+</html>
