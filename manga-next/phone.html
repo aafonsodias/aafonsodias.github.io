@@ -18,11 +18,13 @@ html,body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.45 syst
 .howto p { margin: 6px 0 0; }
 .howto p.sub { font-size: 12px; }
 .howto .acts { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-.qrwrap { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
-.qrwrap p { margin: 0; }
-.qr { flex: none; width: 168px; height: 168px; padding: 8px; background: #fff; border-radius: 8px; box-sizing: content-box; }
+.qrwrap { margin-top: 12px; }
+.qrwrap p { margin: 0 0 8px; }
+.qr { width: 320px; max-width: 100%; aspect-ratio: 1; padding: 12px; background: #fff; border-radius: 10px; cursor: zoom-in; }
 .qr svg { width: 100%; height: 100%; display: block; }
 .qr:empty { display: none; }
+.qrbig { position: fixed; inset: 0; z-index: 9; background: #fff; display: flex; align-items: center; justify-content: center; cursor: zoom-out; }
+.qrbig svg { width: min(88vw, 88vh); height: min(88vw, 88vh); }
 .howto button { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
 .howto button.quiet { background: transparent; color: var(--fg-2); border-color: var(--border); font-weight: 500; }
 header { position:sticky; top:0; z-index:2; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 16px; padding-top:calc(12px + env(safe-area-inset-top)); background:var(--bg); border-bottom:1px solid var(--border); }
@@ -83,18 +85,27 @@ footer { padding:14px 16px calc(14px + env(safe-area-inset-bottom)); color:var(-
   try { newOnly = localStorage.getItem(KEY + ':newOnly') === '1'; } catch {}
 
   async function fromFragment() {
-    const m = location.hash.match(/[#&]([dz])=([A-Za-z0-9_-]+)/);
+    const m = location.hash.match(/[#&]([dzq])=([A-Za-z0-9_-]+)/i);
     if (!m) return null;
     try {
-      const b64 = m[2].replace(/-/g, '+').replace(/_/g, '/');
-      const bin = atob(b64 + '==='.slice((b64.length + 3) % 4));
-      let bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
-      if (m[1] === 'z') {
+      let bytes;
+      if (m[1].toLowerCase() === 'q') bytes = b32dec(m[2]);
+      else {
+        const b64 = m[2].replace(/-/g, '+').replace(/_/g, '/');
+        const bin = atob(b64 + '==='.slice((b64.length + 3) % 4));
+        bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      }
+      if (m[1].toLowerCase() !== 'd') {
         const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
         bytes = new Uint8Array(await new Response(stream).arrayBuffer());
       }
       const data = JSON.parse(new TextDecoder().decode(bytes));
       if (data && data.v === 1 && Array.isArray(data.s)) return data;
+      if (data && data.v === 2 && Array.isArray(data.a)) {
+        data.s = data.a.map(([n, c, u, l, xd, st, nc]) => ({ n, c, u, l, x: xd != null ? data.t + xd * DAY : null, st, nc }));
+        delete data.a;
+        return data;
+      }
     } catch {}
     return null;
   }
@@ -194,15 +205,39 @@ footer { padding:14px 16px calc(14px + env(safe-area-inset-bottom)); color:var(-
     });
     return qrLib;
   }
-  async function drawQr(box, text) {
+  // The QR carries a slim copy of the list (names, chapters, reading links): fewer modules, easier to scan
+  // off a screen. Covers and release rhythm stay in the full link.
+  // Base32 (uppercase, no padding) lets the QR use its alphanumeric mode: fewer modules than base64.
+  const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  function b32enc(bytes) { let out = '', bits = 0, acc = 0; for (const b of bytes) { acc = (acc << 8) | b; bits += 8; while (bits >= 5) { out += B32[(acc >>> (bits - 5)) & 31]; bits -= 5; } } if (bits) out += B32[(acc << (5 - bits)) & 31]; return out; }
+  function b32dec(str) { const out = []; let bits = 0, acc = 0; for (const ch of str.toUpperCase()) { const v = B32.indexOf(ch); if (v < 0) continue; acc = (acc << 5) | v; bits += 5; if (bits >= 8) { out.push((acc >>> (bits - 8)) & 255); bits -= 8; } } return Uint8Array.from(out); }
+  async function slimLink(data) {
+    // one row per series: name, your chapter, reading link, latest, next release in days from t, status, chapter to read
+    const rows = data.s.map((x) => [x.n, x.c, x.u, x.l, x.x ? Math.round((x.x - data.t) / DAY) : null, x.st, x.nc]);
+    const slim = { v: 2, t: data.t, f: data.f, b: data.b ? 1 : 0, a: rows };
+    const input = new TextEncoder().encode(JSON.stringify(slim));
+    const stream = new Blob([input]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+    return { prefix: location.origin + location.pathname + '#q=', payload: b32enc(new Uint8Array(await new Response(stream).arrayBuffer())) };
+  }
+  async function drawQr(box, data) {
     try {
-      const bytes = new TextEncoder().encode(text).length;
-      if (bytes > 2900) { box.replaceChildren(el('div', { class: 'sub' }, t('qrLong'))); return; }
+      const { prefix, payload } = await slimLink(data);
+      const text = prefix + payload;
+      if (payload.length > 4000) { box.replaceChildren(el('div', { class: 'sub' }, t('qrLong'))); return; }
       const qrcode = await loadQr();
       const q = qrcode(0, 'L');
-      q.addData(text, 'Byte');
+      q.addData(prefix, 'Byte');
+      q.addData(payload, 'Alphanumeric');
       q.make();
       box.innerHTML = q.createSvgTag({ cellSize: 2, margin: 0, scalable: true });
+      box.title = text;
+      // click: the code fills the screen, for a phone held at arm's length
+      box.addEventListener('click', () => {
+        const big = el('div', { class: 'qrbig' });
+        big.innerHTML = box.innerHTML;
+        big.addEventListener('click', () => big.remove());
+        document.body.appendChild(big);
+      });
     } catch {
       box.replaceChildren(el('div', { class: 'sub' }, t('qrLong')));
     }
@@ -221,7 +256,7 @@ footer { padding:14px 16px calc(14px + env(safe-area-inset-bottom)); color:var(-
     const qrBox = el('div', { class: 'qr' });
     qrWrap.appendChild(qrBox);
     box.appendChild(qrWrap);
-    drawQr(qrBox, location.href);
+    drawQr(qrBox, data);
     const acts = el('div', { class: 'acts' });
     const copy = el('button', { class: 'quiet' }, t('copy'));
     copy.addEventListener('click', async () => { try { await navigator.clipboard.writeText(location.href); copy.textContent = t('copied'); setTimeout(() => (copy.textContent = t('copy')), 1500); } catch { prompt(t('copyPrompt'), location.href); } });
