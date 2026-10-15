@@ -1,0 +1,17 @@
+name: Manga Next · feature request
+description: An idea for the Manga Next extension.
+title: "[Idea] "
+labels: ["manga-next", "idea"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What should Manga Next do, and what would it save you?
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: How you do it today
+      description: Optional. The workaround, if there is one.

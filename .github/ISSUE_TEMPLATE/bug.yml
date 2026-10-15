@@ -1,0 +1,27 @@
+name: Manga Next · bug report
+description: Something in the Manga Next extension is broken.
+title: "[Bug] "
+labels: ["manga-next", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the report. Keep it short; the details box below is filled in by the extension and tells most of the story.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw instead.
+      placeholder: I clicked … and …
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Details from the extension
+      description: Filled in automatically from Settings → Report a bug. Version, browser, settings and recent failures. Never your series or bookmarks.
+      render: text
+  - type: input
+    id: site
+    attributes:
+      label: Reading site, if it matters
+      placeholder: e.g. the site whose chapter link was not recognised (no need to paste the link)

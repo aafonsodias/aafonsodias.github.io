@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Manga Next · privacy
+    url: https://aafonsodias.github.io/manga-next/privacy.html
+    about: What the extension stores and what it sends.
