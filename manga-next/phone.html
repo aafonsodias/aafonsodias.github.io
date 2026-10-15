@@ -12,6 +12,14 @@
 @media (prefers-color-scheme: dark) { :root { --bg:#15161c; --bg-2:#1c1d25; --fg:#f3f4f6; --fg-2:#d1d5db; --muted:#9ca3af; --border:#2a2c38; --accent:#8b8cf2; --accent-soft:#24264a; --warn:#fbbf24; --bad:#f87171; --ok:#34d399; } }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html,body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+@media (min-width: 700px) { body { max-width: 560px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border); min-height: 100vh; } }
+.howto { margin: 12px 16px 4px; padding: 12px 14px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent-soft); font-size: 14px; line-height: 1.5; }
+.howto strong { display: block; margin-bottom: 4px; }
+.howto ol { margin: 6px 0 0; padding-left: 20px; }
+.howto li { margin: 2px 0; }
+.howto .acts { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.howto button { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+.howto button.quiet { background: transparent; color: var(--fg-2); border-color: var(--border); font-weight: 500; }
 header { position:sticky; top:0; z-index:2; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 16px; padding-top:calc(12px + env(safe-area-inset-top)); background:var(--bg); border-bottom:1px solid var(--border); }
 h1 { font-size:17px; margin:0; font-weight:700; }
 .sub { color:var(--muted); font-size:12px; margin-top:2px; }
@@ -74,8 +82,7 @@ footer { padding:14px 16px calc(14px + env(safe-area-inset-bottom)); color:var(-
     const fresh = await fromFragment();
     if (fresh) {
       try { localStorage.setItem(KEY, JSON.stringify(fresh)); } catch {}
-      history.replaceState(null, '', location.pathname); // keep the address bar clean; data is saved on the phone
-      return fresh;
+      return fresh; // the link keeps its data, so it can be sent or scanned as-is
     }
     try { const s = localStorage.getItem(KEY); if (s) return JSON.parse(s); } catch {}
     return null;
@@ -110,6 +117,7 @@ footer { padding:14px 16px calc(14px + env(safe-area-inset-bottom)); color:var(-
       $('foot').textContent = '';
       return;
     }
+    if (window.matchMedia('(min-width: 700px)').matches && location.hash.length > 10) list.appendChild(howto());
     const rows = data.s.map((s) => ({ s, k: classify(s, now) })).sort((a, b) => (a.s.x || 9e15) - (b.s.x || 9e15));
     const n = rows.filter((r) => r.k === 'new').length;
     $('sub').textContent = `${data.s.length} series · ${n} new · synced ${ago(data.t, now)}`;
@@ -127,6 +135,28 @@ footer { padding:14px 16px calc(14px + env(safe-area-inset-bottom)); color:var(-
       for (const { s, k } of items) list.appendChild(row(s, k, now));
     }
     $('foot').textContent = 'This list is a copy from your computer. Bookmark the chapter you stop at in Chrome on this phone, into the same folder; Chrome sync carries it back and the extension picks it up.';
+  }
+
+  // Shown on a computer screen: this page is meant for the phone, here is how to get it there.
+  function howto() {
+    const box = el('div', { class: 'howto' });
+    box.appendChild(el('strong', {}, 'This is your list, ready for your phone. Get it there one of three ways:'));
+    const ol = el('ol');
+    ol.appendChild(el('li', {}, 'Right-click this page and choose “Create QR code for this page”, then point your phone camera at it.'));
+    ol.appendChild(el('li', {}, 'Click the address bar, then the “Send to your devices” icon, and pick your phone.'));
+    ol.appendChild(el('li', {}, 'Copy the link and send it to yourself on WhatsApp, email, anything.'));
+    box.appendChild(ol);
+    const acts = el('div', { class: 'acts' });
+    const copy = el('button', {}, 'Copy link');
+    copy.addEventListener('click', async () => { try { await navigator.clipboard.writeText(location.href); copy.textContent = 'Copied'; setTimeout(() => (copy.textContent = 'Copy link'), 1500); } catch { prompt('Copy this link:', location.href); } });
+    acts.appendChild(copy);
+    if (navigator.share) { const sh = el('button', { class: 'quiet' }, 'Share…'); sh.addEventListener('click', () => navigator.share({ title: 'Manga Next', url: location.href }).catch(() => {})); acts.appendChild(sh); }
+    const hide = el('button', { class: 'quiet' }, 'Hide');
+    hide.addEventListener('click', () => box.remove());
+    acts.appendChild(hide);
+    box.appendChild(acts);
+    box.appendChild(el('div', { class: 'sub', style: 'margin-top:8px' }, 'The list travels inside the link itself. Nothing is uploaded anywhere. On the phone, add the page to your home screen to keep it.'));
+    return box;
   }
 
   function row(s, k, now) {
