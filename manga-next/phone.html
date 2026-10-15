@@ -57,6 +57,21 @@ footer { padding:14px 16px calc(14px + env(safe-area-inset-bottom)); color:var(-
 <script>
 (() => {
   const DAY = 86400000;
+  // Words in the language of the phone (Chrome's language on the computer when opened there).
+  const L = {
+    en: { newOnly: 'New only', nothingYet: 'Nothing here yet', howGet: 'On your computer, open the Manga Next extension and press Phone. Then use Chrome’s “Send to your devices” on that tab, or copy the link here.', sub: '$1 series · $2 new · synced $3', nothingNew: 'Nothing new', caughtUp: 'You are caught up. Turn off “New only” to see the rest.', foot: 'This list is a copy from your computer. Bookmark the chapter you stop at in Chrome on this phone, into the same folder; Chrome sync carries it back and the extension picks it up.', ready: 'This is your list, ready for your phone. Get it there one of three ways:', qr: 'Right-click this page and choose “Create QR code for this page”, then point your phone camera at it.', send: 'Click the address bar, then the “Send to your devices” icon, and pick your phone.', copyHow: 'Copy the link and send it to yourself on WhatsApp, email, anything.', copy: 'Copy link', copied: 'Copied', copyPrompt: 'Copy this link:', share: 'Share…', hide: 'Hide', travels: 'The list travels inside the link itself. Nothing is uploaded anywhere. On the phone, add the page to your home screen to keep it.', secNew: 'New chapters', secSoon: 'Coming up', secQuiet: 'Quiet', secDone: 'Finished', secUnknown: 'Not checked', pillNew: 'NEW $1', pillHiatus: 'HIATUS', pillBreak: 'BREAK?', pillDone: 'DONE', you: 'you', latest: 'latest', completed: 'Completed', hiatus: 'On hiatus', brk: 'Quiet for a while, probably on a break', next: 'Next $1 ($2)', noHistory: 'Not enough history to predict', readCh: 'Read ch $1', yourBookmark: 'Your bookmark', open: 'Open', today: 'today', tomorrow: 'tomorrow', yesterday: 'yesterday', inDays: 'in $1 days', daysAgo: '$1 days ago', minAgo: '$1 min ago', hAgo: '$1 h ago', weekly: 'weekly', biweekly: 'every two weeks', triweekly: 'every three weeks', monthly: 'monthly', everyDays: 'every ~$1 days', onWeekday: ', usually $1' },
+    pt: { newOnly: 'Só novos', nothingYet: 'Ainda não há nada aqui', howGet: 'No computador, abra a extensão Manga Next e carregue em Telemóvel. Depois use “Enviar para os seus dispositivos” do Chrome nessa aba, ou copie a ligação para aqui.', sub: '$1 séries · $2 novos · sincronizado $3', nothingNew: 'Nada de novo', caughtUp: 'Está em dia. Desligue “Só novos” para ver o resto.', foot: 'Esta lista é uma cópia do seu computador. Guarde como marcador o capítulo em que parar, no Chrome deste telemóvel, na mesma pasta; a sincronização do Chrome leva-o de volta e a extensão apanha-o.', ready: 'Esta é a sua lista, pronta para o telemóvel. Passe-a de uma de três formas:', qr: 'Clique com o botão direito nesta página, escolha “Criar código QR para esta página” e aponte a câmara do telemóvel.', send: 'Clique na barra de endereço, depois no ícone “Enviar para os seus dispositivos” e escolha o telemóvel.', copyHow: 'Copie a ligação e envie-a a si próprio por WhatsApp, email, o que quiser.', copy: 'Copiar ligação', copied: 'Copiado', copyPrompt: 'Copie esta ligação:', share: 'Partilhar…', hide: 'Esconder', travels: 'A lista viaja dentro da própria ligação. Nada é enviado para lado nenhum. No telemóvel, adicione a página ao ecrã inicial para a manter.', secNew: 'Capítulos novos', secSoon: 'A seguir', secQuiet: 'Em silêncio', secDone: 'Terminados', secUnknown: 'Não verificado', pillNew: 'NOVO $1', pillHiatus: 'PAUSA', pillBreak: 'PAUSA?', pillDone: 'FIM', you: 'você', latest: 'último', completed: 'Terminado', hiatus: 'Em pausa', brk: 'Em silêncio há algum tempo, provavelmente em pausa', next: 'Próximo $1 ($2)', noHistory: 'Histórico insuficiente para prever', readCh: 'Ler cap. $1', yourBookmark: 'O seu marcador', open: 'Abrir', today: 'hoje', tomorrow: 'amanhã', yesterday: 'ontem', inDays: 'em $1 dias', daysAgo: 'há $1 dias', minAgo: 'há $1 min', hAgo: 'há $1 h', weekly: 'semanal', biweekly: 'de duas em duas semanas', triweekly: 'de três em três semanas', monthly: 'mensal', everyDays: 'a cada ~$1 dias', onWeekday: ', normalmente $1' },
+    es: { newOnly: 'Solo nuevos', nothingYet: 'Aún no hay nada aquí', howGet: 'En el ordenador, abre la extensión Manga Next y pulsa Móvil. Luego usa “Enviar a tus dispositivos” de Chrome en esa pestaña, o copia el enlace aquí.', sub: '$1 series · $2 nuevos · sincronizado $3', nothingNew: 'Nada nuevo', caughtUp: 'Estás al día. Desactiva “Solo nuevos” para ver el resto.', foot: 'Esta lista es una copia de tu ordenador. Guarda como marcador el capítulo donde pares, en Chrome en este móvil, en la misma carpeta; la sincronización de Chrome lo devuelve y la extensión lo recoge.', ready: 'Esta es tu lista, lista para el móvil. Pásala de una de estas tres formas:', qr: 'Haz clic derecho en esta página, elige “Crear código QR para esta página” y apunta con la cámara del móvil.', send: 'Haz clic en la barra de direcciones, luego en el icono “Enviar a tus dispositivos” y elige tu móvil.', copyHow: 'Copia el enlace y envíatelo por WhatsApp, correo, lo que sea.', copy: 'Copiar enlace', copied: 'Copiado', copyPrompt: 'Copia este enlace:', share: 'Compartir…', hide: 'Ocultar', travels: 'La lista viaja dentro del propio enlace. No se sube nada a ningún sitio. En el móvil, añade la página a la pantalla de inicio para conservarla.', secNew: 'Capítulos nuevos', secSoon: 'Próximamente', secQuiet: 'En silencio', secDone: 'Terminados', secUnknown: 'Sin comprobar', pillNew: 'NUEVO $1', pillHiatus: 'PAUSA', pillBreak: '¿PAUSA?', pillDone: 'FIN', you: 'tú', latest: 'último', completed: 'Terminado', hiatus: 'En pausa', brk: 'Lleva tiempo en silencio, probablemente en pausa', next: 'Próximo $1 ($2)', noHistory: 'No hay historial suficiente para predecir', readCh: 'Leer cap. $1', yourBookmark: 'Tu marcador', open: 'Abrir', today: 'hoy', tomorrow: 'mañana', yesterday: 'ayer', inDays: 'en $1 días', daysAgo: 'hace $1 días', minAgo: 'hace $1 min', hAgo: 'hace $1 h', weekly: 'semanal', biweekly: 'cada dos semanas', triweekly: 'cada tres semanas', monthly: 'mensual', everyDays: 'cada ~$1 días', onWeekday: ', normalmente $1' },
+    fr: { newOnly: 'Nouveaux', nothingYet: 'Rien ici pour l’instant', howGet: 'Sur votre ordinateur, ouvrez l’extension Manga Next et cliquez sur Téléphone. Puis utilisez « Envoyer à vos appareils » de Chrome sur cet onglet, ou copiez le lien ici.', sub: '$1 séries · $2 nouveaux · synchronisé $3', nothingNew: 'Rien de nouveau', caughtUp: 'Vous êtes à jour. Désactivez « Nouveaux » pour voir le reste.', foot: 'Cette liste est une copie de votre ordinateur. Ajoutez aux favoris le chapitre où vous vous arrêtez, dans Chrome sur ce téléphone, dans le même dossier ; la synchronisation Chrome le ramène et l’extension le récupère.', ready: 'Voici votre liste, prête pour le téléphone. Trois façons de l’y envoyer :', qr: 'Clic droit sur cette page, « Créer un code QR pour cette page », puis visez-le avec l’appareil photo du téléphone.', send: 'Cliquez sur la barre d’adresse, puis sur l’icône « Envoyer à vos appareils », et choisissez votre téléphone.', copyHow: 'Copiez le lien et envoyez-le-vous par WhatsApp, e-mail, n’importe quoi.', copy: 'Copier le lien', copied: 'Copié', copyPrompt: 'Copiez ce lien :', share: 'Partager…', hide: 'Masquer', travels: 'La liste voyage dans le lien lui-même. Rien n’est envoyé nulle part. Sur le téléphone, ajoutez la page à l’écran d’accueil pour la garder.', secNew: 'Nouveaux chapitres', secSoon: 'À venir', secQuiet: 'Silencieux', secDone: 'Terminés', secUnknown: 'Non vérifié', pillNew: 'NOUVEAU $1', pillHiatus: 'PAUSE', pillBreak: 'PAUSE ?', pillDone: 'FINI', you: 'vous', latest: 'dernier', completed: 'Terminé', hiatus: 'En pause', brk: 'Silencieux depuis un moment, probablement en pause', next: 'Prochain $1 ($2)', noHistory: 'Pas assez d’historique pour prédire', readCh: 'Lire ch. $1', yourBookmark: 'Votre favori', open: 'Ouvrir', today: 'aujourd’hui', tomorrow: 'demain', yesterday: 'hier', inDays: 'dans $1 jours', daysAgo: 'il y a $1 jours', minAgo: 'il y a $1 min', hAgo: 'il y a $1 h', weekly: 'hebdomadaire', biweekly: 'toutes les deux semaines', triweekly: 'toutes les trois semaines', monthly: 'mensuel', everyDays: 'tous les ~$1 jours', onWeekday: ', souvent le $1' },
+    de: { newOnly: 'Nur neue', nothingYet: 'Hier ist noch nichts', howGet: 'Öffne am Computer die Erweiterung Manga Next und klicke auf Handy. Nutze dann in diesem Tab Chromes „An deine Geräte senden“ oder kopiere den Link hierher.', sub: '$1 Serien · $2 neu · synchronisiert $3', nothingNew: 'Nichts Neues', caughtUp: 'Du bist auf dem Stand. Schalte „Nur neue“ aus, um den Rest zu sehen.', foot: 'Diese Liste ist eine Kopie von deinem Computer. Speichere das Kapitel, bei dem du aufhörst, in Chrome auf diesem Handy als Lesezeichen in denselben Ordner; Chrome-Sync bringt es zurück und die Erweiterung übernimmt es.', ready: 'Das ist deine Liste, bereit fürs Handy. So kommt sie dorthin:', qr: 'Rechtsklick auf diese Seite, „QR-Code für diese Seite erstellen“, dann mit der Handykamera draufhalten.', send: 'Klicke in die Adressleiste, dann auf das Symbol „An deine Geräte senden“ und wähle dein Handy.', copyHow: 'Kopiere den Link und schicke ihn dir per WhatsApp, E-Mail, egal wie.', copy: 'Link kopieren', copied: 'Kopiert', copyPrompt: 'Diesen Link kopieren:', share: 'Teilen…', hide: 'Ausblenden', travels: 'Die Liste steckt im Link selbst. Nichts wird irgendwohin hochgeladen. Füge die Seite am Handy dem Startbildschirm hinzu, um sie zu behalten.', secNew: 'Neue Kapitel', secSoon: 'Demnächst', secQuiet: 'Ruhig', secDone: 'Abgeschlossen', secUnknown: 'Nicht geprüft', pillNew: 'NEU $1', pillHiatus: 'PAUSE', pillBreak: 'PAUSE?', pillDone: 'ENDE', you: 'du', latest: 'aktuell', completed: 'Abgeschlossen', hiatus: 'Pausiert', brk: 'Seit einer Weile ruhig, wahrscheinlich Pause', next: 'Nächstes $1 ($2)', noHistory: 'Zu wenig Verlauf für eine Vorhersage', readCh: 'Kap. $1 lesen', yourBookmark: 'Dein Lesezeichen', open: 'Öffnen', today: 'heute', tomorrow: 'morgen', yesterday: 'gestern', inDays: 'in $1 Tagen', daysAgo: 'vor $1 Tagen', minAgo: 'vor $1 Min.', hAgo: 'vor $1 Std.', weekly: 'wöchentlich', biweekly: 'alle zwei Wochen', triweekly: 'alle drei Wochen', monthly: 'monatlich', everyDays: 'etwa alle $1 Tage', onWeekday: ', meist $1' },
+    it: { newOnly: 'Solo nuovi', nothingYet: 'Qui non c’è ancora niente', howGet: 'Sul computer, apri l’estensione Manga Next e premi Telefono. Poi usa “Invia ai tuoi dispositivi” di Chrome su quella scheda, o copia il link qui.', sub: '$1 serie · $2 nuovi · sincronizzato $3', nothingNew: 'Niente di nuovo', caughtUp: 'Sei in pari. Disattiva “Solo nuovi” per vedere il resto.', foot: 'Questa lista è una copia dal tuo computer. Salva nei preferiti il capitolo a cui ti fermi, in Chrome su questo telefono, nella stessa cartella; la sincronizzazione di Chrome lo riporta e l’estensione lo riprende.', ready: 'Questa è la tua lista, pronta per il telefono. Passala in uno di tre modi:', qr: 'Clic destro su questa pagina, scegli “Crea codice QR per questa pagina” e punta la fotocamera del telefono.', send: 'Clicca sulla barra degli indirizzi, poi sull’icona “Invia ai tuoi dispositivi” e scegli il telefono.', copyHow: 'Copia il link e mandatelo su WhatsApp, email, quello che vuoi.', copy: 'Copia link', copied: 'Copiato', copyPrompt: 'Copia questo link:', share: 'Condividi…', hide: 'Nascondi', travels: 'La lista viaggia dentro il link stesso. Niente viene caricato da nessuna parte. Sul telefono, aggiungi la pagina alla schermata iniziale per tenerla.', secNew: 'Capitoli nuovi', secSoon: 'In arrivo', secQuiet: 'In silenzio', secDone: 'Conclusi', secUnknown: 'Non controllato', pillNew: 'NUOVO $1', pillHiatus: 'PAUSA', pillBreak: 'PAUSA?', pillDone: 'FINE', you: 'tu', latest: 'ultimo', completed: 'Concluso', hiatus: 'In pausa', brk: 'In silenzio da un po’, probabilmente in pausa', next: 'Prossimo $1 ($2)', noHistory: 'Storico insufficiente per prevedere', readCh: 'Leggi cap. $1', yourBookmark: 'Il tuo preferito', open: 'Apri', today: 'oggi', tomorrow: 'domani', yesterday: 'ieri', inDays: 'tra $1 giorni', daysAgo: '$1 giorni fa', minAgo: '$1 min fa', hAgo: '$1 h fa', weekly: 'settimanale', biweekly: 'ogni due settimane', triweekly: 'ogni tre settimane', monthly: 'mensile', everyDays: 'ogni ~$1 giorni', onWeekday: ', di solito $1' },
+    ja: { newOnly: '新着のみ', nothingYet: 'まだ何もありません', howGet: 'パソコンで Manga Next 拡張機能を開き「スマホ」を押してください。そのタブで Chrome の「デバイスに送信」を使うか、リンクをここにコピーしてください。', sub: '$1作品 · 新着$2 · $3に同期', nothingNew: '新着なし', caughtUp: 'すべて読み終えています。「新着のみ」をオフにすると残りが表示されます。', foot: 'このリストはパソコンからのコピーです。このスマホの Chrome で、読み終えた話を同じフォルダにブックマークすれば、Chrome の同期で戻り、拡張機能が反映します。', ready: 'スマホ用のリストです。次のいずれかで送れます:', qr: 'このページを右クリックして「このページのQRコードを作成」を選び、スマホのカメラで読み取ります。', send: 'アドレスバーをクリックし、「デバイスに送信」アイコンからスマホを選びます。', copyHow: 'リンクをコピーして、WhatsApp やメールなどで自分に送ります。', copy: 'リンクをコピー', copied: 'コピーしました', copyPrompt: 'このリンクをコピー:', share: '共有…', hide: '閉じる', travels: 'リストはリンク自体に含まれています。どこにもアップロードされません。スマホではホーム画面に追加すると保持できます。', secNew: '新しい話', secSoon: '近日', secQuiet: '静か', secDone: '完結', secUnknown: '未確認', pillNew: '新着 $1', pillHiatus: '休載', pillBreak: '休載?', pillDone: '完結', you: 'あなた', latest: '最新', completed: '完結', hiatus: '休載中', brk: 'しばらく更新がなく、休載中かもしれません', next: '次は$1 ($2)', noHistory: '予測するには履歴が足りません', readCh: '第$1話を読む', yourBookmark: 'あなたのブックマーク', open: '開く', today: '今日', tomorrow: '明日', yesterday: '昨日', inDays: '$1日後', daysAgo: '$1日前', minAgo: '$1分前', hAgo: '$1時間前', weekly: '週刊', biweekly: '2週ごと', triweekly: '3週ごと', monthly: '月刊', everyDays: '約$1日ごと', onWeekday: '、だいたい$1' },
+  };
+  const LANG = (navigator.language || 'en').toLowerCase().split('-')[0];
+  const W = L[LANG] || L.en;
+  const t = (k, ...subs) => subs.reduce((acc, s, i) => acc.replace(`$${i + 1}`, String(s)), W[k] ?? L.en[k] ?? k);
+  document.documentElement.lang = LANG in L ? LANG : 'en';
+
   const KEY = 'manga-next-phone';
   const $ = (id) => document.getElementById(id);
   let newOnly = false;
@@ -89,9 +104,11 @@ footer { padding:14px 16px calc(14px + env(safe-area-inset-bottom)); color:var(-
   }
   function safe(u) { try { const p = new URL(u); return p.protocol === 'https:' || p.protocol === 'http:' ? p.href : null; } catch { return null; } }
   function startOfDay(ts) { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); }
-  function fmtDate(ts) { return new Date(ts).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); }
-  function relDays(ts, now) { const d = Math.round((startOfDay(ts) - startOfDay(now)) / DAY); if (d === 0) return 'today'; if (d === 1) return 'tomorrow'; if (d === -1) return 'yesterday'; return d > 1 ? `in ${d} days` : `${-d} days ago`; }
-  function ago(ts, now) { const m = Math.max(0, Math.round((now - ts) / 60000)); if (m < 60) return `${m} min ago`; const h = Math.round(m / 60); if (h < 48) return `${h} h ago`; return `${Math.round(h / 24)} days ago`; }
+  function fmtDate(ts) { return new Date(ts).toLocaleDateString(navigator.language || 'en', { weekday: 'short', day: 'numeric', month: 'short' }); }
+  function weekdayName(w) { return new Date(1970, 0, 4 + w).toLocaleDateString(navigator.language || 'en', { weekday: 'short' }); }
+  function cadence(s) { if (s.cd) { const d = s.cd, wd = s.wd != null ? t('onWeekday', weekdayName(s.wd)) : ''; if (d >= 6 && d <= 8) return t('weekly') + wd; if (d >= 13 && d <= 15) return t('biweekly') + wd; if (d >= 20 && d <= 23) return t('triweekly'); if (d >= 27 && d <= 33) return t('monthly'); return t('everyDays', Math.round(d)); } return s.r || ''; }
+  function relDays(ts, now) { const d = Math.round((startOfDay(ts) - startOfDay(now)) / DAY); if (d === 0) return t('today'); if (d === 1) return t('tomorrow'); if (d === -1) return t('yesterday'); return d > 1 ? t('inDays', d) : t('daysAgo', -d); }
+  function ago(ts, now) { const m = Math.max(0, Math.round((now - ts) / 60000)); if (m < 60) return t('minAgo', m); const h = Math.round(m / 60); if (h < 48) return t('hAgo', h); return t('daysAgo', Math.round(h / 24)); }
   function el(tag, attrs = {}, text) { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'class') n.className = v; else n.setAttribute(k, v); } if (text != null) n.textContent = text; return n; }
 
   function classify(s, now) {
@@ -101,18 +118,19 @@ footer { padding:14px 16px calc(14px + env(safe-area-inset-bottom)); color:var(-
     if (s.st === 'hiatus' || s.st === 'break') return 'quiet';
     return s.x ? 'soon' : 'unknown';
   }
-  const SECTIONS = [['new', 'New chapters'], ['soon', 'Coming up'], ['quiet', 'Quiet'], ['done', 'Finished'], ['unknown', 'Not checked']];
+  const SECTIONS = [['new', 'secNew'], ['soon', 'secSoon'], ['quiet', 'secQuiet'], ['done', 'secDone'], ['unknown', 'secUnknown']];
 
   async function render() {
     const data = await load();
     const now = Date.now();
     const list = $('list'); list.textContent = '';
     $('filter').setAttribute('aria-pressed', String(newOnly));
+    $('filter').textContent = t('newOnly');
     if (!data) {
       $('sub').textContent = '';
       const box = el('div', { class: 'empty' });
-      box.appendChild(el('strong', {}, 'Nothing here yet'));
-      box.append('On your computer, open the Manga Next extension and press Phone. Then use Chrome’s “Send to your devices” on that tab, or copy the link here.');
+      box.appendChild(el('strong', {}, t('nothingYet')));
+      box.append(t('howGet'));
       list.appendChild(box);
       $('foot').textContent = '';
       return;
@@ -120,42 +138,42 @@ footer { padding:14px 16px calc(14px + env(safe-area-inset-bottom)); color:var(-
     if (window.matchMedia('(min-width: 700px)').matches && location.hash.length > 10) list.appendChild(howto());
     const rows = data.s.map((s) => ({ s, k: classify(s, now) })).sort((a, b) => (a.s.x || 9e15) - (b.s.x || 9e15));
     const n = rows.filter((r) => r.k === 'new').length;
-    $('sub').textContent = `${data.s.length} series · ${n} new · synced ${ago(data.t, now)}`;
+    $('sub').textContent = t('sub', data.s.length, n, ago(data.t, now));
     const visible = newOnly ? rows.filter((r) => r.k === 'new') : rows;
     if (!visible.length) {
       const box = el('div', { class: 'empty' });
-      box.appendChild(el('strong', {}, 'Nothing new'));
-      box.append('You are caught up. Turn off “New only” to see the rest.');
+      box.appendChild(el('strong', {}, t('nothingNew')));
+      box.append(t('caughtUp'));
       list.appendChild(box);
     }
     for (const [id, label] of SECTIONS) {
       const items = visible.filter((r) => r.k === id);
       if (!items.length) continue;
-      if (!newOnly) { const h = el('div', { class: 'section' }, label); h.appendChild(el('span', { class: 'count' }, String(items.length))); list.appendChild(h); }
+      if (!newOnly) { const h = el('div', { class: 'section' }, t(label)); h.appendChild(el('span', { class: 'count' }, String(items.length))); list.appendChild(h); }
       for (const { s, k } of items) list.appendChild(row(s, k, now));
     }
-    $('foot').textContent = 'This list is a copy from your computer. Bookmark the chapter you stop at in Chrome on this phone, into the same folder; Chrome sync carries it back and the extension picks it up.';
+    $('foot').textContent = t('foot');
   }
 
   // Shown on a computer screen: this page is meant for the phone, here is how to get it there.
   function howto() {
     const box = el('div', { class: 'howto' });
-    box.appendChild(el('strong', {}, 'This is your list, ready for your phone. Get it there one of three ways:'));
+    box.appendChild(el('strong', {}, t('ready')));
     const ol = el('ol');
-    ol.appendChild(el('li', {}, 'Right-click this page and choose “Create QR code for this page”, then point your phone camera at it.'));
-    ol.appendChild(el('li', {}, 'Click the address bar, then the “Send to your devices” icon, and pick your phone.'));
-    ol.appendChild(el('li', {}, 'Copy the link and send it to yourself on WhatsApp, email, anything.'));
+    ol.appendChild(el('li', {}, t('qr')));
+    ol.appendChild(el('li', {}, t('send')));
+    ol.appendChild(el('li', {}, t('copyHow')));
     box.appendChild(ol);
     const acts = el('div', { class: 'acts' });
-    const copy = el('button', {}, 'Copy link');
-    copy.addEventListener('click', async () => { try { await navigator.clipboard.writeText(location.href); copy.textContent = 'Copied'; setTimeout(() => (copy.textContent = 'Copy link'), 1500); } catch { prompt('Copy this link:', location.href); } });
+    const copy = el('button', {}, t('copy'));
+    copy.addEventListener('click', async () => { try { await navigator.clipboard.writeText(location.href); copy.textContent = t('copied'); setTimeout(() => (copy.textContent = t('copy')), 1500); } catch { prompt(t('copyPrompt'), location.href); } });
     acts.appendChild(copy);
-    if (navigator.share) { const sh = el('button', { class: 'quiet' }, 'Share…'); sh.addEventListener('click', () => navigator.share({ title: 'Manga Next', url: location.href }).catch(() => {})); acts.appendChild(sh); }
-    const hide = el('button', { class: 'quiet' }, 'Hide');
+    if (navigator.share) { const sh = el('button', { class: 'quiet' }, t('share')); sh.addEventListener('click', () => navigator.share({ title: 'Manga Next', url: location.href }).catch(() => {})); acts.appendChild(sh); }
+    const hide = el('button', { class: 'quiet' }, t('hide'));
     hide.addEventListener('click', () => box.remove());
     acts.appendChild(hide);
     box.appendChild(acts);
-    box.appendChild(el('div', { class: 'sub', style: 'margin-top:8px' }, 'The list travels inside the link itself. Nothing is uploaded anywhere. On the phone, add the page to your home screen to keep it.'));
+    box.appendChild(el('div', { class: 'sub', style: 'margin-top:8px' }, t('travels')));
     return box;
   }
 
@@ -166,27 +184,27 @@ footer { padding:14px 16px calc(14px + env(safe-area-inset-bottom)); color:var(-
     const body = el('div', { class: 'body' });
     const title = el('div', { class: 'title' });
     title.appendChild(el('span', { class: 'name' }, s.n));
-    if (k === 'new') title.appendChild(el('span', { class: 'pill' }, `NEW ${s.l}`));
-    else if (s.st === 'hiatus') title.appendChild(el('span', { class: 'pill warn' }, 'HIATUS'));
-    else if (s.st === 'break') title.appendChild(el('span', { class: 'pill warn' }, 'BREAK?'));
-    else if (s.st === 'completed') title.appendChild(el('span', { class: 'pill muted' }, 'DONE'));
+    if (k === 'new') title.appendChild(el('span', { class: 'pill' }, t('pillNew', s.l)));
+    else if (s.st === 'completed' || s.st === 'cancelled') title.appendChild(el('span', { class: 'pill muted' }, t('pillDone')));
+    else if (s.st === 'hiatus') title.appendChild(el('span', { class: 'pill warn' }, t('pillHiatus')));
+    else if (s.st === 'break') title.appendChild(el('span', { class: 'pill warn' }, t('pillBreak')));
     body.appendChild(title);
     const meta = el('div', { class: 'meta' });
-    meta.append('you '); meta.appendChild(el('b', {}, s.c != null ? String(s.c) : '?'));
-    meta.append('  latest '); meta.appendChild(el('b', {}, s.l != null ? String(s.l) : '?'));
+    meta.append(t('you') + ' '); meta.appendChild(el('b', {}, s.c != null ? String(s.c) : '?'));
+    meta.append('  ' + t('latest') + ' '); meta.appendChild(el('b', {}, s.l != null ? String(s.l) : '?'));
     if (s.ld) meta.append(` (${relDays(s.ld, now)})`);
     body.appendChild(meta);
     let text = '', tone = '';
-    if (s.st === 'completed') text = 'Completed';
-    else if (s.st === 'hiatus') text = 'On hiatus', tone = 'warn';
-    else if (s.st === 'break') text = 'Quiet for a while, probably on a break', tone = 'warn';
-    else if (s.x) { const rel = relDays(s.x, now); text = `Next ${fmtDate(s.x)} (${rel})${s.r ? ` · ${s.r}` : ''}`; tone = rel === 'today' || rel === 'tomorrow' ? 'ok' : ''; }
-    else text = 'Not enough history to predict';
+    if (s.st === 'completed') text = t('completed');
+    else if (s.st === 'hiatus') text = t('hiatus'), tone = 'warn';
+    else if (s.st === 'break') text = t('brk'), tone = 'warn';
+    else if (s.x) { const rel = relDays(s.x, now); const c = cadence(s); text = t('next', fmtDate(s.x), rel) + (c ? ` · ${c}` : ''); tone = rel === t('today') || rel === t('tomorrow') ? 'ok' : ''; }
+    else text = t('noHistory');
     body.appendChild(el('div', { class: `next ${tone}` }, text));
     const actions = el('div', { class: 'actions' });
     const nu = safe(s.nu), u = safe(s.u);
-    if (k === 'new' && (nu || u)) actions.appendChild(el('a', { class: 'btn', href: nu || u }, `Read ch ${s.nc}`));
-    if (u) actions.appendChild(el('a', { class: 'btn quiet', href: u }, k === 'new' ? 'Your bookmark' : 'Open'));
+    if (k === 'new' && (nu || u)) actions.appendChild(el('a', { class: 'btn', href: nu || u }, t('readCh', s.nc)));
+    if (u) actions.appendChild(el('a', { class: 'btn quiet', href: u }, k === 'new' ? t('yourBookmark') : t('open')));
     body.appendChild(actions);
     r.appendChild(body);
     return r;
