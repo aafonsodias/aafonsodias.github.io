@@ -54,20 +54,24 @@ footer { padding:14px 16px calc(14px + env(safe-area-inset-bottom)); color:var(-
   let newOnly = false;
   try { newOnly = localStorage.getItem(KEY + ':newOnly') === '1'; } catch {}
 
-  function fromFragment() {
-    const m = location.hash.match(/[#&]d=([A-Za-z0-9_-]+)/);
+  async function fromFragment() {
+    const m = location.hash.match(/[#&]([dz])=([A-Za-z0-9_-]+)/);
     if (!m) return null;
     try {
-      const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+      const b64 = m[2].replace(/-/g, '+').replace(/_/g, '/');
       const bin = atob(b64 + '==='.slice((b64.length + 3) % 4));
-      const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      let bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      if (m[1] === 'z') {
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+        bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+      }
       const data = JSON.parse(new TextDecoder().decode(bytes));
       if (data && data.v === 1 && Array.isArray(data.s)) return data;
     } catch {}
     return null;
   }
-  function load() {
-    const fresh = fromFragment();
+  async function load() {
+    const fresh = await fromFragment();
     if (fresh) {
       try { localStorage.setItem(KEY, JSON.stringify(fresh)); } catch {}
       history.replaceState(null, '', location.pathname); // keep the address bar clean; data is saved on the phone
@@ -92,8 +96,8 @@ footer { padding:14px 16px calc(14px + env(safe-area-inset-bottom)); color:var(-
   }
   const SECTIONS = [['new', 'New chapters'], ['soon', 'Coming up'], ['quiet', 'Quiet'], ['done', 'Finished'], ['unknown', 'Not checked']];
 
-  function render() {
-    const data = load();
+  async function render() {
+    const data = await load();
     const now = Date.now();
     const list = $('list'); list.textContent = '';
     $('filter').setAttribute('aria-pressed', String(newOnly));
